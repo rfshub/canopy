@@ -41,3 +41,30 @@
   background-color: #3F5E5C;
   color: #e5e7eb;
 }
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--tertiary-color) 50%, var(--secondary-color));
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tertiary-color);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tertiary-color) 50%, var(--secondary-color)) var(--secondary-color);
+}
+
+.dark * {
+  scrollbar-color: color-mix(in srgb, var(--tertiary-color) 50%, var(--secondary-color)) var(--secondary-color);
+}
