@@ -1,12 +1,16 @@
 /* /src/modules/footer.tsx */
 
 import { version } from '../../package.json';
+import ThemeToggle from '~/modules/theme-toggle';
 
 export default function Footer() {
   return (
     <footer
       className="h-12 w-full flex-shrink-0 flex items-center justify-between px-6 text-sm border-t glass-effect"
-      style={{ borderColor: 'var(--tertiary-color)', color: 'var(--subtext-color)' }}
+      style={{
+        borderColor: 'var(--tertiary-color)',
+        color: 'var(--subtext-color)',
+      }}
     >
       <p>
         <a
@@ -46,7 +50,7 @@ export default function Footer() {
         </a>
         .
       </p>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-4">
         <a
           href="https://github.com/rfshub"
           target="_blank"
@@ -66,6 +70,7 @@ export default function Footer() {
           </a>
           &nbsp;v{version}
         </span>
+        <ThemeToggle />
       </div>
     </footer>
   );
