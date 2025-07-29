@@ -1,4 +1,4 @@
-/* /src/modules/sidebar/sidebar.tsx */
+/* /src/modules/sidebar.tsx */
 
 export default function Sidebar() {
   return (

@@ -1,6 +1,6 @@
 {
-  "name": "template",
-  "version": "0.1.0",
+  "name": "canopy",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev --port 30722 --turbopack",

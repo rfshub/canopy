@@ -7,6 +7,7 @@
   --secondary-color: #f0f0f0;
   --tertiary-color: #d5d5d5;
   --text-color: #111111;
+  --subtext-color: #555555;
   --error-color: #e53935;
   --accent-color: #155fcf;
 }
@@ -18,6 +19,7 @@
   --secondary-color: #1a1a1a;
   --tertiary-color: #2a2a2a;
   --text-color: #f5f5f5;
+  --subtext-color: #aaaaaa;
   --error-color: #e57373;
   --accent-color: #5aaaff;
 }
