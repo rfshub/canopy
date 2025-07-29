@@ -6,14 +6,14 @@ import Footer from "~/modules/footer/footer";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex flex-1">
+    <div className="flex h-dvh" style={{ backgroundColor: 'var(--primary-color)' }}>
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <main className="min-h-dvh flex flex-col">
           {children}
         </main>
+        <Footer />
       </div>
-      <Footer />
     </div>
   );
 }
