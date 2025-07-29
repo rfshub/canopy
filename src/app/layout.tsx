@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import "~/styles/globals.css";
-
+import "~/styles/color.css";
 
 export const metadata: Metadata = {
   title: "App",
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning={true}>
+    <html lang="en" className="dark">
       <body
         className={`antialiased bg-white text-black dark:bg-black dark:text-white`}
       >

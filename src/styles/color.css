@@ -1,0 +1,41 @@
+/* src/styles/color.css */
+
+:root {
+  --theme-color: #CD5C5C;
+  --primary-color: #fdfdfd;
+  --secondary-color: #f5f5f5;
+  --tertiary-color: #e5e5e5;
+  --text-color: #1e1e1e;
+  --error-color: #e64545;
+  --accent-color: #1a73e8;
+}
+
+.dark {
+  --theme-color: #C05A5A;
+  --primary-color: #252525;
+  --secondary-color: #2f2f2f;
+  --tertiary-color: #414141;
+  --text-color: #f5f5f5;
+  --error-color: #ff5c5c;
+  --accent-color: #4d8dff;
+}
+
+::selection {
+  background-color: #FFF8A0;
+  color: #111827;
+}
+
+::-moz-selection {
+  background-color: #FFF8A0;
+  color: #111827;
+}
+
+.dark ::selection {
+  background-color: #4a635f;
+  color: #e5e7eb;
+}
+
+.dark ::-moz-selection {
+  background-color: #4a635f;
+  color: #e5e7eb;
+}
