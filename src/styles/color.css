@@ -1,41 +1,43 @@
 /* src/styles/color.css */
 
 :root {
-  --theme-color: #CD5C5C;
-  --primary-color: #fdfdfd;
-  --secondary-color: #f5f5f5;
-  --tertiary-color: #e5e5e5;
-  --text-color: #1e1e1e;
-  --error-color: #e64545;
-  --accent-color: #1a73e8;
+  --theme-color: #c84f4f;
+  --primary-color: #fafafa;
+  --primary-color-rgb: 250, 250, 250;
+  --secondary-color: #f0f0f0;
+  --tertiary-color: #d5d5d5;
+  --text-color: #111111;
+  --error-color: #e53935;
+  --accent-color: #155fcf;
 }
 
 .dark {
-  --theme-color: #C05A5A;
-  --primary-color: #252525;
-  --secondary-color: #2f2f2f;
-  --tertiary-color: #414141;
+  --theme-color: #992e2e;
+  --primary-color: #0f0f0f;
+  --primary-color-rgb: 15, 15, 15;
+  --secondary-color: #1a1a1a;
+  --tertiary-color: #2a2a2a;
   --text-color: #f5f5f5;
-  --error-color: #ff5c5c;
-  --accent-color: #4d8dff;
+  --error-color: #e57373;
+  --accent-color: #5aaaff;
 }
 
 ::selection {
-  background-color: #FFF8A0;
-  color: #111827;
+  background-color: #FFF9A8;
+  color: #1f2937;
 }
 
 ::-moz-selection {
-  background-color: #FFF8A0;
-  color: #111827;
+  background-color: #FFF9A8;
+  color: #1f2937;
 }
 
 .dark ::selection {
-  background-color: #4a635f;
+  background-color: #3F5E5C;
   color: #e5e7eb;
 }
 
 .dark ::-moz-selection {
-  background-color: #4a635f;
+  background-color: #3F5E5C;
   color: #e5e7eb;
 }
