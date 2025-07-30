@@ -27,7 +27,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentNodeId, setInternalCurrentNodeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-
   const updateNodeStatusInternal = useCallback((nodeId: string, status: NodeStatus) => {
     setNodes(prevNodes => {
       const newNodes = { ...prevNodes };
@@ -45,7 +44,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const initialCurrentNodeId = getCurrentNodeId();
     setNodes(initialNodes);
     setInternalCurrentNodeId(initialCurrentNodeId);
-
     if (!initialCurrentNodeId || !initialNodes[initialCurrentNodeId]) {
       router.push('/setup');
       setIsLoading(false);

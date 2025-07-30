@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 import type { NodeStatus } from '~/lib/store';
 
-// --- Helper Components ---
-
 const StatusBadge = ({ status }: { status: NodeStatus }) => {
   const statusConfig = {
     checking: { text: 'Checking...', color: 'var(--subtext-color)', icon: <Loader2 className="w-3 h-3 animate-spin" /> },
@@ -43,7 +41,6 @@ const AddNodeDialog = () => {
   const { addNode, setCurrentNode } = useApp();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-
   const [nodeName, setNodeName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [seed, setSeed] = useState('');
@@ -71,7 +68,6 @@ const AddNodeDialog = () => {
 
       if (testRes.status === 403) throw new Error('Authentication failed. Invalid Node Key.');
       if (!testRes.ok) throw new Error(`Server error: ${testRes.status}`);
-
       const newNodeId = `node_${Date.now()}`;
       addNode(newNodeId, { name: nodeName, addr: apiUrl, token: seed, status: 'active' });
       setCurrentNode(newNodeId);
@@ -106,7 +102,6 @@ const AddNodeDialog = () => {
           <Dialog.Description className="mt-2 text-sm text-center" style={{ color: 'var(--subtext-color)' }}>
             Configure a new twig instance to manage.
           </Dialog.Description>
-          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3"><Server className="w-4 h-4" style={{color: 'var(--subtext-color)'}} /></span>
@@ -120,9 +115,7 @@ const AddNodeDialog = () => {
               <span className="absolute inset-y-0 left-0 flex items-center pl-3"><KeyRound className="w-4 h-4" style={{color: 'var(--subtext-color)'}} /></span>
               <input value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="Node Key" type="password" required className="w-full p-2 pl-10 rounded-lg border" style={{backgroundColor: 'var(--primary-color)', borderColor: 'var(--tertiary-color)'}}/>
             </div>
-            
             {error && <div className="flex items-center text-sm" style={{color: 'var(--error-color)'}}><XCircle className="w-4 h-4 mr-2" />{error}</div>}
-
             <button type="submit" disabled={isVerifying} className="w-full flex justify-center items-center py-2 px-4 text-white font-semibold rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ backgroundColor: 'var(--theme-color)' }}>
               {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect and Save'}
@@ -138,7 +131,6 @@ const AddNodeDialog = () => {
 export default function SetupPage() {
   const { nodes, currentNodeId, setCurrentNode, removeNode, updateNodeStatus } = useApp();
   const [statuses, setStatuses] = useState<Record<string, NodeStatus>>({});
-  
   const nodeIds = JSON.stringify(Object.keys(nodes));
 
   useEffect(() => {
@@ -149,7 +141,6 @@ export default function SetupPage() {
       const statusPromises = parsedNodeIds.map(async (nodeId: string) => {
         const node = nodes[nodeId];
         if (!node) return [nodeId, 'inactive'];
-        
         setStatuses(s => ({ ...s, [nodeId]: 'checking' }));
         try {
           const token = await generateToken(node.token);
@@ -163,11 +154,9 @@ export default function SetupPage() {
           return [nodeId, 'inactive'];
         }
       });
-      
       const results = await Promise.all(statusPromises);
       const newStatuses = Object.fromEntries(results);
       setStatuses(newStatuses);
-      
       Object.entries(newStatuses).forEach(([nodeId, status]) => {
         updateNodeStatus(nodeId, status as NodeStatus);
       });
@@ -190,14 +179,13 @@ export default function SetupPage() {
           Select a configured node or add a new one.
         </p>
       </div>
-
       <div className="space-y-3">
         {Object.keys(nodes).length > 0 ? (
           Object.entries(nodes).map(([nodeId, node]) => {
             const isCurrent = nodeId === currentNodeId;
             return (
               <div key={nodeId} className={`flex items-center p-3 rounded-lg border-2 transition-colors duration-200`} 
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary-color)',
                   borderColor: isCurrent ? 'var(--theme-color)' : 'transparent'
                 }}>
@@ -227,7 +215,6 @@ export default function SetupPage() {
           <p className="text-center text-sm py-4" style={{ color: 'var(--subtext-color)' }}>No nodes configured yet.</p>
         )}
       </div>
-
       <AddNodeDialog />
     </div>
   );
