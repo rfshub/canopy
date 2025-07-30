@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-toggle-group": "^1.1.10",
     "framer-motion": "^12.23.11",
     "lucide-react": "^0.533.0",
