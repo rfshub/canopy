@@ -1,7 +1,7 @@
 /* /src/lib/store.ts */
 
 // --- Type Definitions ---
-export type NodeStatus = 'active' | 'inactive' | 'unauthorized';
+export type NodeStatus = 'active' | 'inactive' | 'unauthorized' | 'checking';
 
 export interface Node {
   name: string;
@@ -16,10 +16,10 @@ export interface Nodes {
 
 // --- Constants ---
 const NODES_KEY = '@rfs/nodes';
-const CURRENT_NODE_KEY = '@rfs/current';
+const CURRENT_NODE_KEY = '@rfs/current'; // Updated key
 
 // --- Utility Functions ---
-const safeLocalStorage = (action: 'get' | 'set', key: string, value?: string): string | null => {
+const safeLocalStorage = (action: 'get' | 'set' | 'remove', key: string, value?: string): string | null => {
   if (typeof window === 'undefined') return null;
   try {
     if (action === 'get') {
@@ -27,6 +27,9 @@ const safeLocalStorage = (action: 'get' | 'set', key: string, value?: string): s
     }
     if (action === 'set' && value !== undefined) {
       window.localStorage.setItem(key, value);
+    }
+    if (action === 'remove') {
+      window.localStorage.removeItem(key);
     }
   } catch (e) {
     console.error(`localStorage access failed for key "${key}":`, e);
@@ -52,8 +55,6 @@ export const setCurrentNodeId = (nodeId: string | null) => {
   if (nodeId) {
     safeLocalStorage('set', CURRENT_NODE_KEY, nodeId);
   } else {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(CURRENT_NODE_KEY);
-    }
+    safeLocalStorage('remove', CURRENT_NODE_KEY);
   }
 };

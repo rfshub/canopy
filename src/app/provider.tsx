@@ -3,9 +3,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import { getNodes, saveNodes, getCurrentNodeId, setCurrentNodeId as saveCurrentNodeId, type Nodes, type Node } from '~/lib/store';
+import { getNodes, saveNodes, getCurrentNodeId, setCurrentNodeId as saveCurrentNodeId, type Nodes, type Node, type NodeStatus } from '~/lib/store';
 import { request } from '~/api/request';
 
 // --- Context Definition ---
@@ -15,7 +15,7 @@ interface AppContextType {
   setCurrentNode: (nodeId: string | null) => void;
   addNode: (nodeId: string, node: Node) => void;
   removeNode: (nodeId: string) => void;
-  updateNodeStatus: (nodeId: string, status: Node['status']) => void;
+  updateNodeStatus: (nodeId: string, status: NodeStatus) => void;
   isLoading: boolean;
 }
 
@@ -24,22 +24,32 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // --- Main Provider Component ---
 export function AppProvider({ children }: { children: ReactNode }) {
   const [nodes, setNodes] = useState<Nodes>({});
-  const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
+  const [currentNodeId, setInternalCurrentNodeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  const updateNodeStatusInternal = useCallback((nodeId: string, status: NodeStatus) => {
+    setNodes(prevNodes => {
+      const newNodes = { ...prevNodes };
+      if (newNodes[nodeId] && newNodes[nodeId].status !== status) {
+        newNodes[nodeId].status = status;
+        saveNodes(newNodes);
+        return newNodes;
+      }
+      return prevNodes; // Return previous state if no change
+    });
+  }, []);
 
   useEffect(() => {
     const initialNodes = getNodes();
     const initialCurrentNodeId = getCurrentNodeId();
     setNodes(initialNodes);
-    setCurrentNodeId(initialCurrentNodeId);
+    setInternalCurrentNodeId(initialCurrentNodeId);
 
     if (!initialCurrentNodeId || !initialNodes[initialCurrentNodeId]) {
-      // No node is configured, go to setup
       router.push('/setup');
       setIsLoading(false);
     } else {
-      // Health check the current node
       const healthCheck = async () => {
         try {
           const res = await request('/v1/system/information');
@@ -52,8 +62,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           } else {
             updateNodeStatusInternal(initialCurrentNodeId, 'inactive');
           }
-        } catch (error) {
-          console.error("Health check failed:", error);
+        } catch {
+          // This catch is intentional. If the request fails (e.g., network error),
+          // it means the node is offline. We mark it as inactive without logging an error.
           updateNodeStatusInternal(initialCurrentNodeId, 'inactive');
         } finally {
           setIsLoading(false);
@@ -61,46 +72,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       healthCheck();
     }
+  }, [router, updateNodeStatusInternal]);
+
+  const setCurrentNode = useCallback((nodeId: string | null) => {
+    saveCurrentNodeId(nodeId);
+    setInternalCurrentNodeId(nodeId);
+    if (nodeId) router.push('/');
+    else router.push('/setup');
   }, [router]);
 
-  const updateNodeStatusInternal = (nodeId: string, status: Node['status']) => {
-    setNodes(prevNodes => {
-      const newNodes = { ...prevNodes };
-      if (newNodes[nodeId]) {
-        newNodes[nodeId].status = status;
-        saveNodes(newNodes);
-        return newNodes;
-      }
-      return prevNodes;
+  const addNode = useCallback((nodeId: string, node: Node) => {
+    setNodes(prev => {
+      const newNodes = { ...prev, [nodeId]: node };
+      saveNodes(newNodes);
+      return newNodes;
     });
-  };
+  }, []);
+
+  const removeNode = useCallback((nodeId: string) => {
+    setNodes(prev => {
+      const newNodes = { ...prev };
+      delete newNodes[nodeId];
+      saveNodes(newNodes);
+      if (getCurrentNodeId() === nodeId) {
+        setCurrentNode(null);
+      }
+      return newNodes;
+    });
+  }, [setCurrentNode]);
 
   const contextValue: AppContextType = {
     nodes,
     currentNodeId,
     isLoading,
-    setCurrentNode: (nodeId) => {
-      saveCurrentNodeId(nodeId);
-      setCurrentNodeId(nodeId);
-      // When switching, redirect to dashboard to re-trigger data fetching
-      if(nodeId) router.push('/');
-      else router.push('/setup');
-    },
-    addNode: (nodeId, node) => {
-      setNodes(prev => {
-        const newNodes = { ...prev, [nodeId]: node };
-        saveNodes(newNodes);
-        return newNodes;
-      });
-    },
-    removeNode: (nodeId) => {
-      setNodes(prev => {
-        const newNodes = { ...prev };
-        delete newNodes[nodeId];
-        saveNodes(newNodes);
-        return newNodes;
-      });
-    },
+    setCurrentNode,
+    addNode,
+    removeNode,
     updateNodeStatus: updateNodeStatusInternal,
   };
 

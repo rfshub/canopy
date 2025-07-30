@@ -9,7 +9,6 @@
   --text-color: #111111;
   --subtext-color: #555555;
   --error-color: #e53935;
-  --accent-color: #155fcf;
 }
 
 .dark {
@@ -21,7 +20,6 @@
   --text-color: #f5f5f5;
   --subtext-color: #aaaaaa;
   --error-color: #e57373;
-  --accent-color: #5aaaff;
 }
 
 ::selection {

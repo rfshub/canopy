@@ -65,7 +65,7 @@ export default function ThemeToggle() {
         <ToggleGroup.Item
           key={option.value}
           value={option.value}
-          className="relative flex items-center justify-center h-6 w-6 rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--primary-color)] focus-visible:ring-[var(--accent-color)]"
+          className="relative flex items-center justify-center h-6 w-6 rounded-full transition-colors duration-300 focus:outline-none"
           aria-label={option.value}
         >
           {theme === option.value && (
