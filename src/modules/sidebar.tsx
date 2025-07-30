@@ -4,9 +4,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect, type ElementType } from 'react';
+import { useState, useEffect, useMemo, type ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Collapsible from '@radix-ui/react-collapsible';
+import * as Popover from '@radix-ui/react-popover';
+import { useApp } from '~/app/provider';
 import {
   Home,
   Container,
@@ -18,6 +20,8 @@ import {
   MemoryStick,
   ChevronsLeftRightEllipsis,
   HardDrive,
+  LogOut,
+  ServerOff,
 } from 'lucide-react';
 
 // --- Type Definitions for Navigation Items ---
@@ -90,7 +94,6 @@ const CollapsibleNav = ({ item, isActive }: { item: CollapsibleNavItem; isActive
   const [isOpen, setIsOpen] = useState(isActive);
   const pathname = usePathname();
 
-  // This effect handles the auto-collapse logic by watching for path changes.
   useEffect(() => {
     if (!pathname.startsWith(item.basePath)) {
       setIsOpen(false);
@@ -180,16 +183,78 @@ const CollapsibleNav = ({ item, isActive }: { item: CollapsibleNavItem; isActive
   );
 };
 
+const NodeStatusCard = () => {
+  const { nodes, currentNodeId, currentNodeInfo } = useApp();
+  const currentNode = currentNodeId ? nodes[currentNodeId] : null;
+  const displayIp = useMemo(() => {
+    if (!currentNodeInfo?.ip) return '...';
+    const { ipv4 = [], ipv6 = [] } = currentNodeInfo.ip;
+    const prioritizedIp =
+      ipv4.find(ip => ip.startsWith('100.')) ||
+      ipv4.find(ip => ip.startsWith('192.168.')) ||
+      ipv4[0] ||
+      ipv6[0];
+    return prioritizedIp || 'N/A';
+  }, [currentNodeInfo]);
+
+  if (!currentNode) {
+    return null;
+  }
+
+  const isOnline = currentNode.status === 'active';
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button className="w-full flex items-center p-1 rounded-lg hover:bg-[var(--secondary-color)] transition-colors duration-200">
+          <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full" style={{ backgroundColor: 'var(--secondary-color)' }}>
+            <div className="w-7 h-7 flex items-center justify-center rounded-full" style={{ backgroundColor: 'var(--primary-color)' }}>
+              {isOnline ? (
+                <Server className="w-4 h-4" style={{ color: 'var(--subtext-color)' }} />
+              ) : (
+                <ServerOff className="w-4 h-4" style={{ color: 'var(--subtext-color)' }} />
+              )}
+            </div>
+          </div>
+          <div className="flex-1 ml-2 text-left overflow-hidden">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-color)' }}>{currentNode.name}</p>
+            <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
+              {isOnline ? displayIp : (currentNode.status.charAt(0).toUpperCase() + currentNode.status.slice(1))}
+            </p>
+          </div>
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content sideOffset={10} align="start" className="w-56 rounded-lg shadow-lg p-2 z-50" style={{ backgroundColor: 'var(--primary-color)', borderColor: 'var(--tertiary-color)', borderWidth: '1px' }}>
+          <AnimatePresence>
+            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}>
+              <div className="p-2">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-color)' }}>{currentNode.name}</p>
+                <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>{currentNode.addr}</p>
+              </div>
+              <div className="h-px my-1" style={{ backgroundColor: 'var(--tertiary-color)' }} />
+              <Link href="/setup" className="flex items-center w-full p-2 text-sm rounded-md hover:bg-[var(--secondary-color)] transition-colors" style={{ color: 'var(--text-color)' }}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Switch or Manage Nodes
+              </Link>
+            </motion.div>
+          </AnimatePresence>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+};
+
 // --- Main Sidebar Component ---
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
     <aside
-      className="hidden md:flex flex-col w-44 flex-shrink-0 border-r glass-effect h-dvh overflow-y-auto"
+      className="hidden md:flex flex-col w-44 flex-shrink-0 border-r glass-effect h-dvh"
       style={{ borderColor: 'var(--tertiary-color)' }}
     >
-      <nav className="p-2">
+      <nav className="flex-1 p-2 overflow-y-auto">
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive =
@@ -208,6 +273,9 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
+      <div className="p-2">
+        <NodeStatusCard />
+      </div>
     </aside>
   );
 }

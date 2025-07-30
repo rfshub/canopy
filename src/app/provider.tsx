@@ -8,10 +8,25 @@ import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { getNodes, saveNodes, getCurrentNodeId, setCurrentNodeId as saveCurrentNodeId, type Nodes, type Node, type NodeStatus } from '~/lib/store';
 import { request } from '~/api/request';
 
-// --- Context Definition ---
+// --- Type Definitions ---
+interface SystemIp {
+  ipv4: string[];
+  ipv6: string[];
+}
+
+interface SystemInfo {
+  hostname: string;
+  os: string;
+  kernel: string;
+  arch: string;
+  ip: SystemIp;
+  // uptime can be added here if needed
+}
+
 interface AppContextType {
   nodes: Nodes;
   currentNodeId: string | null;
+  currentNodeInfo: SystemInfo | null;
   setCurrentNode: (nodeId: string | null) => void;
   addNode: (nodeId: string, node: Node) => void;
   removeNode: (nodeId: string) => void;
@@ -25,6 +40,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [nodes, setNodes] = useState<Nodes>({});
   const [currentNodeId, setInternalCurrentNodeId] = useState<string | null>(null);
+  const [currentNodeInfo, setCurrentNodeInfo] = useState<SystemInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const updateNodeStatusInternal = useCallback((nodeId: string, status: NodeStatus) => {
@@ -35,7 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveNodes(newNodes);
         return newNodes;
       }
-      return prevNodes; // Return previous state if no change
+      return prevNodes;
     });
   }, []);
 
@@ -44,14 +60,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const initialCurrentNodeId = getCurrentNodeId();
     setNodes(initialNodes);
     setInternalCurrentNodeId(initialCurrentNodeId);
+
     if (!initialCurrentNodeId || !initialNodes[initialCurrentNodeId]) {
       router.push('/setup');
       setIsLoading(false);
     } else {
       const healthCheck = async () => {
+        setCurrentNodeInfo(null); // Clear previous info
         try {
           const res = await request('/v1/system/information');
           if (res.ok) {
+            const json = await res.json();
+            setCurrentNodeInfo(json.data);
             updateNodeStatusInternal(initialCurrentNodeId, 'active');
           } else if (res.status === 403) {
             updateNodeStatusInternal(initialCurrentNodeId, 'unauthorized');
@@ -61,8 +81,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             updateNodeStatusInternal(initialCurrentNodeId, 'inactive');
           }
         } catch {
-          // This catch is intentional. If the request fails (e.g., network error),
-          // it means the node is offline. We mark it as inactive without logging an error.
           updateNodeStatusInternal(initialCurrentNodeId, 'inactive');
         } finally {
           setIsLoading(false);
@@ -75,8 +93,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setCurrentNode = useCallback((nodeId: string | null) => {
     saveCurrentNodeId(nodeId);
     setInternalCurrentNodeId(nodeId);
-    if (nodeId) router.push('/');
-    else router.push('/setup');
+    if (nodeId) {
+      // Reload the page to re-trigger the health check for the new node
+      window.location.assign('/');
+    } else {
+      router.push('/setup');
+    }
   }, [router]);
 
   const addNode = useCallback((nodeId: string, node: Node) => {
@@ -102,6 +124,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const contextValue: AppContextType = {
     nodes,
     currentNodeId,
+    currentNodeInfo,
     isLoading,
     setCurrentNode,
     addNode,
