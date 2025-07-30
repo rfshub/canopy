@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import '~/styles/globals.css';
 import '~/styles/color.css';
 import '~/styles/transitions.css';
-import { PreferenceProvider } from '~/app/provider';
+import { AppProvider } from '~/app/provider';
 
 const siteUrl = 'https://canopy.rfs.im';
 const title = 'Canopy';
@@ -51,7 +51,7 @@ export default function RootLayout({
           color: 'var(--text-color)',
         }}
       >
-        <PreferenceProvider>{children}</PreferenceProvider>
+        <AppProvider>{children}</AppProvider>
       </body>
     </html>
   );
