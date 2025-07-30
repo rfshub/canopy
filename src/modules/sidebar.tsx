@@ -11,11 +11,13 @@ import {
   Home,
   Container,
   Settings,
-  HardDrive,
+  Server,
   ChevronDown,
   Activity,
   Cpu,
   MemoryStick,
+  ChevronsLeftRightEllipsis,
+  HardDrive,
 } from 'lucide-react';
 
 // --- Type Definitions for Navigation Items ---
@@ -49,12 +51,14 @@ const navItems: NavItem[] = [
   {
     type: 'collapsible',
     label: 'System',
-    icon: HardDrive,
+    icon: Server,
     basePath: '/system',
     subItems: [
       { href: '/system', label: 'Insight', icon: Activity },
       { href: '/system/cpu', label: 'CPU', icon: Cpu },
       { href: '/system/memory', label: 'Memory', icon: MemoryStick },
+      { href: '/system/network', label: 'Network', icon: ChevronsLeftRightEllipsis },
+      { href: '/system/storage', label: 'Storage', icon: HardDrive },
     ],
   },
   { type: 'link', href: '/settings', label: 'Settings', icon: Settings },
