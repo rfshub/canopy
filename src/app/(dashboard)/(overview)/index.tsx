@@ -4,6 +4,7 @@
 
 import { useApp } from '~/app/provider';
 import SystemInfoWidget from '~/widgets/sysinfo';
+import MemoryWidget from '~/widgets/memory';
 
 // --- Main Page Component ---
 export default function OverviewIndex() {
@@ -16,6 +17,10 @@ export default function OverviewIndex() {
         {/* System Information Widget */}
         <div className="lg:col-span-1">
           <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
+        </div>
+        {/* Memory Widget */}
+        <div className="lg:col-span-1">
+          <MemoryWidget />
         </div>
       </div>
     </div>

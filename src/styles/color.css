@@ -8,7 +8,9 @@
   --tertiary-color: #d5d5d5;
   --text-color: #111111;
   --subtext-color: #555555;
-  --error-color: #e53935;
+  --red-color: #e53935;
+  --green-color: #43a047;
+  --yellow-color: #fbc02d;
 }
 
 .dark {
@@ -19,7 +21,9 @@
   --tertiary-color: #2a2a2a;
   --text-color: #f5f5f5;
   --subtext-color: #aaaaaa;
-  --error-color: #e57373;
+  --red-color: #e57373;
+  --green-color: #66bb6a;
+  --yellow-color: #fff176;
 }
 
 ::selection {
