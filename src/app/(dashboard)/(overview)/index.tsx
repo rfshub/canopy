@@ -5,6 +5,7 @@
 import { useApp } from '~/app/provider';
 import SystemInfoWidget from '~/widgets/sysinfo';
 import MemoryWidget from '~/widgets/memory';
+import CpuWidget from '~/widgets/cpu';
 
 // --- Main Page Component ---
 export default function OverviewIndex() {
@@ -14,13 +15,17 @@ export default function OverviewIndex() {
   return (
     <div className="p-4 md:p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* System Information Widget */}
+        {/* CPU Widget */}
         <div className="lg:col-span-1">
-          <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
+          <CpuWidget />
         </div>
         {/* Memory Widget */}
         <div className="lg:col-span-1">
           <MemoryWidget />
+        </div>
+        {/* System Information Widget */}
+        <div className="lg:col-span-1">
+          <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
         </div>
       </div>
     </div>
