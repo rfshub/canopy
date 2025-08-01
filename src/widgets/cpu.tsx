@@ -1,5 +1,3 @@
-/* /src/widgets/cpu.tsx */
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -230,14 +228,16 @@ export default function CpuWidget() {
               </h2>
               <p className="text-xs truncate mb-3" style={{ color: 'var(--subtext-color)' }}>{cpuInfo.cpu}</p>
               <UsageBar label="Global Usage" usage={cpuInfo.global_usage} />
-              {cpuInfo.frequency.current_frequency_ghz !== -1 && (
+              {cpuInfo.cores >= 2 && (
                 <div className="flex items-baseline justify-between mt-3 text-sm">
                   <div className="flex items-center" style={{ color: 'var(--subtext-color)' }}>
                     <Zap className="w-4 h-4 mr-2" />
                     <span>Frequency</span>
                   </div>
                   <span className="font-mono" style={{ color: 'var(--text-color)' }}>
-                    {`${cpuInfo.frequency.current_frequency_ghz.toFixed(2)} / ${cpuInfo.frequency.max_frequency_ghz.toFixed(2)} GHz`}
+                    {cpuInfo.frequency.current_frequency_ghz <= 0
+                      ? `${cpuInfo.frequency.max_frequency_ghz.toFixed(2)} GHz`
+                      : `${cpuInfo.frequency.current_frequency_ghz.toFixed(2)} / ${cpuInfo.frequency.max_frequency_ghz.toFixed(2)} GHz`}
                   </span>
                 </div>
               )}
@@ -245,7 +245,7 @@ export default function CpuWidget() {
             <div className="mt-3 flex-1 flex flex-col">
               <p className="text-sm mb-2" style={{ color: 'var(--subtext-color)' }}>Core Usage</p>
               <div className="flex-1">
-                {cpuInfo.cores < 5 ? (
+                {cpuInfo.cores === 1 ? (
                   <CoreUsageChart cores={cpuInfo.per_core} history={history} />
                 ) : (
                   <CoreUsageGrid cores={cpuInfo.per_core} />
