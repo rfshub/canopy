@@ -7,6 +7,7 @@ import SystemInfoWidget from '~/widgets/sysinfo';
 import MemoryWidget from '~/widgets/memory';
 import CpuWidget from '~/widgets/cpu';
 import NetworkWidget from '~/widgets/network';
+import StorageWidget from '~/widgets/storage';
 
 // --- Main Page Component ---
 export default function OverviewIndex() {
@@ -31,6 +32,10 @@ export default function OverviewIndex() {
         {/* Network Widget */}
         <div className="lg:col-span-2">
           <NetworkWidget />
+        </div>
+        {/* Storage Widget */}
+        <div className="lg:col-span-1">
+          <StorageWidget />
         </div>
       </div>
     </div>
