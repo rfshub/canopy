@@ -5,7 +5,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { request } from '~/api/request';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { ArrowDown, ArrowUp, RotateCw, Unplug, ChevronsLeftRightEllipsis } from 'lucide-react';
-import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
+import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface NetworkInfo {
   total_received: number;
@@ -41,6 +42,37 @@ const AnimatedNumber = ({ value, formatter }: { value: number; formatter: (val: 
   }, [spring, value]);
 
   return <motion.span>{display}</motion.span>;
+};
+
+// ignore these three ts error, there was confirm that ts plugin error, and pass the lint test
+const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+  if (active && payload && payload.length) {
+    const download = payload.find((p) => p.dataKey === 'download')?.value as number || 0;
+    const upload = payload.find((p) => p.dataKey === 'upload')?.value as number || 0;
+
+    return (
+      <div className="p-2 rounded-md text-xs shadow-lg" style={{ backgroundColor: 'var(--primary-color)', border: '1px solid var(--tertiary-color)' }}>
+        <div className="font-mono space-y-1" style={{ color: 'var(--text-color)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center" style={{color: 'var(--green-color)'}}>
+              <ArrowDown className="w-3 h-3 mr-1.5" />
+              <span>Download</span>
+            </div>
+            <span className="ml-2">{formatBytes(download, 2, true)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center" style={{color: 'var(--yellow-color)'}}>
+              <ArrowUp className="w-3 h-3 mr-1.5" />
+              <span>Upload</span>
+            </div>
+            <span className="ml-2">{formatBytes(upload, 2, true)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 const NetworkSkeleton = () => (
@@ -170,14 +202,7 @@ export default function NetworkWidget() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(var(--primary-color-rgb), 0.8)',
-                      borderColor: 'var(--tertiary-color)',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.75rem',
-                    }}
-                    formatter={(value: number, name: string) => [formatBytes(value, 2, true), name.charAt(0).toUpperCase() + name.slice(1)]}
-                    labelFormatter={() => ''}
+                    content={<CustomTooltip />}
                     cursor={{ stroke: 'var(--tertiary-color)', strokeDasharray: '3 3' }}
                   />
                   <YAxis domain={chartDomain} hide />

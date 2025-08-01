@@ -7,6 +7,7 @@ import { request } from '~/api/request';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { MemoryStick, HardDrive, RotateCw, Unplug, Microchip } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 // --- Type Definitions for API data ---
 interface MemoryInfo {
@@ -51,38 +52,61 @@ const MetricDisplay = ({
   label,
   color,
   currentValue,
+  totalValue,
   historyData,
 }: {
   icon: React.ElementType;
   label: string;
   color: string;
   currentValue: number;
+  totalValue: number;
   historyData: { time: number; value: number }[];
 }) => {
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
-        <Icon className="w-4 h-4 mr-1.5" />
-        <span>{label}</span>
-      </div>
-      <p className="font-semibold text-2xl mt-1" style={{ color: 'var(--text-color)' }}>
-        <AnimatedNumber value={currentValue} />
-      </p>
-      <div className="flex-1 -mx-2 -mb-2 mt-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={historyData}>
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <Tooltip.Provider delayDuration={100}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>
+          <div className="flex-1 flex flex-col cursor-default">
+            <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
+              <Icon className="w-4 h-4 mr-1.5" />
+              <span>{label}</span>
+            </div>
+            <p className="font-semibold text-2xl mt-1" style={{ color: 'var(--text-color)' }}>
+              <AnimatedNumber value={currentValue} />
+            </p>
+            <div className="flex-1 -mx-2 -mb-2 mt-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={historyData}>
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke={color}
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="top"
+            align="center"
+            sideOffset={5}
+            className="p-2 rounded-md text-xs shadow-lg z-50"
+            style={{ backgroundColor: 'var(--primary-color)', border: '1px solid var(--tertiary-color)' }}
+          >
+            <div className="font-mono">
+              <span style={{ color: 'var(--subtext-color)' }}>Total: </span>
+              <span style={{ color: 'var(--text-color)' }}>{formatBytes(totalValue)}</span>
+            </div>
+            <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   );
 };
 
@@ -186,6 +210,7 @@ export default function MemoryWidget() {
                 label="RAM"
                 color="var(--green-color)"
                 currentValue={info.used}
+                totalValue={info.total}
                 historyData={ramHistory}
               />
               <MetricDisplay
@@ -193,6 +218,7 @@ export default function MemoryWidget() {
                 label="Swap"
                 color="var(--yellow-color)"
                 currentValue={info.used_swap}
+                totalValue={info.total_swap}
                 historyData={swapHistory}
               />
             </div>
