@@ -64,7 +64,7 @@ const UsageBar = ({ usage, height = 'h-2.5' }: { usage: number, height?: string 
   const getBarColor = () => {
     if (usage >= 90) return 'var(--red-color)';
     if (usage >= 70) return 'var(--yellow-color)';
-    return 'var(--theme-color)';
+    return 'var(--green-color)';
   };
 
   return (
