@@ -6,6 +6,7 @@ import { useApp } from '~/app/provider';
 import SystemInfoWidget from '~/widgets/sysinfo';
 import MemoryWidget from '~/widgets/memory';
 import CpuWidget from '~/widgets/cpu';
+import NetworkWidget from '~/widgets/network';
 
 // --- Main Page Component ---
 export default function OverviewIndex() {
@@ -26,6 +27,10 @@ export default function OverviewIndex() {
         {/* System Information Widget */}
         <div className="lg:col-span-1">
           <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
+        </div>
+        {/* Network Widget */}
+        <div className="lg:col-span-2">
+          <NetworkWidget />
         </div>
       </div>
     </div>

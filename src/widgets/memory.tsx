@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { request } from '~/api/request';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { MemoryStick, HardDrive, RotateCw, Unplug, Microchip } from 'lucide-react';
@@ -104,48 +104,73 @@ export default function MemoryWidget() {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'loading' | 'connected' | 'retrying' | 'disconnected'>('loading');
 
+  const failureCount = useRef(0);
+  const disconnectTimer = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    const fetchInfo = async () => {
+    let isMounted = true;
+    let nextFetchTimer: NodeJS.Timeout;
+
+    const fetchWithLogic = async () => {
+      if (!isMounted) return;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       try {
-        const res = await request('/v1/monitor/memory');
+        const res = await request('/v1/monitor/memory', { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!res.ok) throw new Error('Server responded with an error');
+
         const data = await res.json();
         const newInfo = data.data as MemoryInfo;
 
-        // Clear timeout only on successful fetch
-        if (initialLoadTimeout) clearTimeout(initialLoadTimeout);
+        if (!isMounted) return;
+
+        // --- SUCCESS LOGIC ---
+        failureCount.current = 0;
+        if (disconnectTimer.current) clearTimeout(disconnectTimer.current);
+        setConnectionStatus('connected');
         setInfo(newInfo);
         setHistory(prev => {
             const newPoint = { time: Date.now(), ram: newInfo.used, swap: newInfo.used_swap };
             const newHistory = [...prev, newPoint];
             return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
         });
-        setConnectionStatus('connected');
-      } catch {
-        setConnectionStatus(prev => (prev === 'connected' || prev === 'loading' ? 'retrying' : prev));
+
+        nextFetchTimer = setTimeout(fetchWithLogic, 1000);
+
+      } catch (error) {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+
+        // --- FAILURE LOGIC ---
+        failureCount.current++;
+        if (failureCount.current >= 3) {
+          if (connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
+            setConnectionStatus('retrying');
+            disconnectTimer.current = setTimeout(() => {
+              if (isMounted) {
+                setConnectionStatus(prevStatus =>
+                  prevStatus === 'retrying' ? 'disconnected' : prevStatus
+                );
+              }
+            }, 3000);
+          }
+        }
+        nextFetchTimer = setTimeout(fetchWithLogic, 1000);
       }
     };
 
-    const initialLoadTimeout = setTimeout(() => {
-      setConnectionStatus(prev => (prev === 'loading' ? 'disconnected' : prev));
-    }, 3000);
+    fetchWithLogic();
 
-    fetchInfo();
-    const intervalId = setInterval(fetchInfo, 1000);
     return () => {
-      clearInterval(intervalId);
-      clearTimeout(initialLoadTimeout);
+      isMounted = false;
+      clearTimeout(nextFetchTimer);
+      if (disconnectTimer.current) clearTimeout(disconnectTimer.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (connectionStatus === 'retrying') {
-      const timer = setTimeout(() => {
-        setConnectionStatus(prev => (prev === 'retrying' ? 'disconnected' : prev));
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [connectionStatus]);
 
   const ramHistory = useMemo(() => history.map(h => ({ time: h.time, value: h.ram })), [history]);
   const swapHistory = useMemo(() => history.map(h => ({ time: h.time, value: h.swap })), [history]);

@@ -27,7 +27,7 @@ export async function generateToken(base64Seed: string): Promise<string> {
     const seedBytes = base64ToUint8Array(base64Seed);
     const SEED_SIZE = 64;
     const TOKEN_COUNT = 6;
-    const timeWindow = Math.floor(Date.now() / 1000 / 5);
+    const timeWindow = Math.floor(Date.now() / 1000 / 15);
     const timeWindowBytes = new ArrayBuffer(8);
     new DataView(timeWindowBytes).setBigInt64(0, BigInt(timeWindow), false);
     const codes: string[] = [];

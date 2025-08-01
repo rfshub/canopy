@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { request } from '~/api/request';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, Zap, RotateCw, Unplug } from 'lucide-react';
@@ -14,25 +14,26 @@ interface CoreUsage {
   core: string;
   usage: number;
 }
-interface CpuInfo {
-  cpu: string;
-  cores: number;
-  global_usage: number;
-  per_core: CoreUsage[];
-}
 
 interface FreqInfo {
   max_frequency_ghz: number;
   current_frequency_ghz: number;
 }
 
-// A flattened history point for the chart
+interface CpuInfo {
+  cpu: string;
+  cores: number;
+  global_usage: number;
+  per_core: CoreUsage[];
+  frequency: FreqInfo;
+}
+
 interface ChartHistoryPoint {
   time: number;
   [coreKey: string]: number; // e.g., '0': 60.5, '1': 45.2
 }
 
-// --- Global Usage Bar ---
+// --- Helper Component for Global Usage Bar ---
 const UsageBar = ({ label, usage }: { label: string; usage: number }) => {
   const getBarColor = () => {
     if (usage >= 90) return 'var(--red-color)';
@@ -127,7 +128,6 @@ const CoreUsageGrid = ({ cores }: { cores: CoreUsage[] }) => {
   );
 };
 
-
 // --- Skeleton Loader Component ---
 const CpuSkeleton = () => (
   <div className="p-3.5 rounded-md h-full flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
@@ -150,85 +150,90 @@ const CpuSkeleton = () => (
 // --- CPU Widget Component ---
 export default function CpuWidget() {
   const [cpuInfo, setCpuInfo] = useState<CpuInfo | null>(null);
-  const [freqInfo, setFreqInfo] = useState<FreqInfo | null>(null);
   const [history, setHistory] = useState<ChartHistoryPoint[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'loading' | 'connected' | 'retrying' | 'disconnected'>('loading');
-  const [isFreqSupported, setIsFreqSupported] = useState(true);
-  const [freqPollInterval, setFreqPollInterval] = useState(1000);
 
-  // Effect for CPU core data (polls every 1s)
+  const failureCount = useRef(0);
+  const disconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
+  const isFetching = useRef(false);
+
   useEffect(() => {
-    const fetchCpuInfo = async () => {
+    isMounted.current = true;
+
+    const fetchWithLogic = async () => {
+      if (isFetching.current || !isMounted.current) return;
+
+      isFetching.current = true;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+
       try {
-        const res = await request('/v1/monitor/cpu');
-        if (!res.ok) throw new Error('Server responded with an error');
-        const data = await res.json();
-        setCpuInfo(data.data);
-        setHistory(prev => {
-          const newPoint: ChartHistoryPoint = { time: Date.now() };
-          data.data.per_core.forEach((core: CoreUsage) => {
-            newPoint[core.core] = core.usage;
+        const res = await request('/v1/monitor/cpu', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.status === 200) {
+          const cpuData = await res.json();
+          if (!isMounted.current) return;
+
+          // Success logic
+          failureCount.current = 0;
+          if (disconnectTimer.current) {
+            clearTimeout(disconnectTimer.current);
+            disconnectTimer.current = null;
+          }
+          setConnectionStatus('connected');
+          setCpuInfo(cpuData.data);
+          setHistory(prev => {
+            const newPoint: ChartHistoryPoint = { time: Date.now() };
+            cpuData.data.per_core.forEach((core: CoreUsage) => {
+              newPoint[core.core] = core.usage;
+            });
+            const newHistory = [...prev, newPoint];
+            return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
           });
-          const newHistory = [...prev, newPoint];
-          return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
-        });
-        if (connectionStatus !== 'connected') setConnectionStatus('connected');
-      } catch {
-        setConnectionStatus(prev => (prev === 'connected' || prev === 'loading' ? 'retrying' : prev));
-      }
-    };
-
-    fetchCpuInfo();
-    const intervalId = setInterval(fetchCpuInfo, 1000);
-    return () => clearInterval(intervalId);
-  }, [connectionStatus]);
-
-  // Effect for CPU frequency data (polls on a variable interval)
-  useEffect(() => {
-    const fetchFreqInfo = async () => {
-      if (!isFreqSupported && freqPollInterval > 1000) return; // Stop polling if not supported
-      try {
-        const res = await request('/v1/monitor/cpu/frequency');
-        if (!res.ok) throw new Error('Server responded with an error');
-        const data = await res.json();
-        const freqData = data.data as FreqInfo;
-        if (freqData.current_frequency_ghz === -1) {
-          setIsFreqSupported(false);
-          setFreqPollInterval(30000); // Change poll rate after discovering it's not supported
+        } else {
+          throw new Error('Non-200 response');
         }
-        setFreqInfo(freqData);
-        if (connectionStatus !== 'connected') setConnectionStatus('connected');
-      } catch {
-        setConnectionStatus(prev => (prev === 'connected' || prev === 'loading' ? 'retrying' : prev));
+      } catch (error) {
+        if (!isMounted.current) return;
+        clearTimeout(timeoutId);
+
+        // Failure logic
+        failureCount.current++;
+
+        if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
+          setConnectionStatus('retrying');
+
+          disconnectTimer.current = setTimeout(() => {
+            if (isMounted.current) {
+              setConnectionStatus('disconnected');
+            }
+          }, 3000);
+        }
+      } finally {
+        isFetching.current = false;
+        if (isMounted.current) {
+          setTimeout(fetchWithLogic, 1000);
+        }
       }
     };
 
-    const initialLoadTimeout = setTimeout(() => {
-      setConnectionStatus(prev => (prev === 'loading' ? 'disconnected' : prev));
-    }, 3000);
+    fetchWithLogic();
 
-    fetchFreqInfo();
-    const intervalId = setInterval(fetchFreqInfo, freqPollInterval);
     return () => {
-      clearInterval(intervalId);
-      clearTimeout(initialLoadTimeout);
+      isMounted.current = false;
+      isFetching.current = false;
+      if (disconnectTimer.current) {
+        clearTimeout(disconnectTimer.current);
+      }
     };
-  }, [freqPollInterval, isFreqSupported, connectionStatus]);
-
-  // Effect for disconnected timeout
-  useEffect(() => {
-    if (connectionStatus === 'retrying') {
-      const timer = setTimeout(() => {
-        setConnectionStatus(prev => (prev === 'retrying' ? 'disconnected' : prev));
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [connectionStatus]);
+  }, []);
 
   return (
     <div className="p-0.5 rounded-lg h-full" style={{ backgroundColor: 'var(--secondary-color)' }}>
       <div className="relative p-3.5 rounded-md h-full" style={{ backgroundColor: 'var(--primary-color)' }}>
-        {cpuInfo && freqInfo ? (
+        {cpuInfo ? (
           <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
             <div>
               <h2 className="text-lg font-semibold flex items-center mb-1" style={{ color: 'var(--text-color)' }}>
@@ -237,14 +242,14 @@ export default function CpuWidget() {
               </h2>
               <p className="text-xs truncate mb-3" style={{ color: 'var(--subtext-color)' }}>{cpuInfo.cpu}</p>
               <UsageBar label="Global Usage" usage={cpuInfo.global_usage} />
-              {isFreqSupported && (
+              {cpuInfo.frequency.current_frequency_ghz !== -1 && (
                 <div className="flex items-baseline justify-between mt-3 text-sm">
                   <div className="flex items-center" style={{ color: 'var(--subtext-color)' }}>
                     <Zap className="w-4 h-4 mr-2" />
                     <span>Frequency</span>
                   </div>
                   <span className="font-mono" style={{ color: 'var(--text-color)' }}>
-                    {`${freqInfo.current_frequency_ghz.toFixed(2)} / ${freqInfo.max_frequency_ghz.toFixed(2)} GHz`}
+                    {`${cpuInfo.frequency.current_frequency_ghz.toFixed(2)} / ${cpuInfo.frequency.max_frequency_ghz.toFixed(2)} GHz`}
                   </span>
                 </div>
               )}

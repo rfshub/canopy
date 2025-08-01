@@ -1,8 +1,7 @@
 /* /src/widgets/sysinfo.tsx */
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { request } from '~/api/request';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -53,43 +52,74 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
   const [isIpTooltipOpen, setIsIpTooltipOpen] = useState(false);
   const [isUptimeTooltipOpen, setIsUptimeTooltipOpen] = useState(false);
 
-  useEffect(() => {
-    const initialLoadTimeout = setTimeout(() => {
-      setConnectionStatus(prev => prev === 'loading' ? 'disconnected' : prev);
-    }, 3000);
+  const failureCount = useRef(0);
+  const disconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
+  const isFetching = useRef(false);
 
-    const fetchInfo = async () => {
+  useEffect(() => {
+    isMounted.current = true;
+
+    const fetchWithLogic = async () => {
+      if (isFetching.current || !isMounted.current) return;
+
+      isFetching.current = true;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+
       try {
-        const res = await request('/v1/system/information');
-        if (!res.ok) throw new Error('Server responded with an error');
-        const data = await res.json();
-        clearTimeout(initialLoadTimeout);
-        setInfo(data.data);
-        setConnectionStatus('connected');
-      } catch {
-        setConnectionStatus(prevStatus =>
-          prevStatus === 'connected' || prevStatus === 'loading' ? 'retrying' : prevStatus
-        );
+        const res = await request('/v1/system/information', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.status === 200) {
+          const data = await res.json();
+          if (!isMounted.current) return;
+
+          // Success logic
+          failureCount.current = 0;
+          if (disconnectTimer.current) {
+            clearTimeout(disconnectTimer.current);
+            disconnectTimer.current = null;
+          }
+          setConnectionStatus('connected');
+          setInfo(data.data);
+        } else {
+          throw new Error('Non-200 response');
+        }
+      } catch (error) {
+        if (!isMounted.current) return;
+        clearTimeout(timeoutId);
+
+        // Failure logic
+        failureCount.current++;
+
+        if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
+          setConnectionStatus('retrying');
+          disconnectTimer.current = setTimeout(() => {
+            if (isMounted.current) {
+              setConnectionStatus('disconnected');
+            }
+          }, 3000);
+        }
+      } finally {
+        isFetching.current = false;
+        if (isMounted.current) {
+          // Wait 1s before next request
+          setTimeout(fetchWithLogic, 1000);
+        }
       }
     };
 
-    fetchInfo();
-    const intervalId = setInterval(fetchInfo, 1000);
+    fetchWithLogic();
 
     return () => {
-      clearInterval(intervalId);
-      clearTimeout(initialLoadTimeout);
+      isMounted.current = false;
+      isFetching.current = false;
+      if (disconnectTimer.current) {
+        clearTimeout(disconnectTimer.current);
+      }
     };
-  }, []);
-
-  useEffect(() => {
-    if (connectionStatus === 'retrying') {
-      const timer = setTimeout(() => {
-        setConnectionStatus(prevStatus => prevStatus === 'retrying' ? 'disconnected' : prevStatus);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [connectionStatus]);
+  }, []); // Empty dependency array to prevent re-runs on state changes
 
   return (
     <div className="p-0.5 rounded-lg h-full" style={{ backgroundColor: 'var(--secondary-color)' }}>
