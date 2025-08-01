@@ -5,8 +5,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { request } from '~/api/request';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { ArrowDown, ArrowUp, RotateCw, Unplug, ChevronsLeftRightEllipsis } from 'lucide-react';
-import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface NetworkInfo {
   total_received: number;
@@ -20,6 +19,19 @@ interface HistoryPoint {
   time: number;
   download: number;
   upload: number;
+}
+
+// --- Custom Tooltip Props Interface ---
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    dataKey: string;
+    value: number;
+    name: string;
+    color: string;
+    stroke: string;
+    fill: string;
+  }>;
 }
 
 const formatBytes = (bytes: number, decimals = 2, perSecond = false): string => {
@@ -44,11 +56,10 @@ const AnimatedNumber = ({ value, formatter }: { value: number; formatter: (val: 
   return <motion.span>{display}</motion.span>;
 };
 
-// ignore these three ts error, there was confirm that ts plugin error, and pass the lint test
-const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
-    const download = payload.find((p) => p.dataKey === 'download')?.value as number || 0;
-    const upload = payload.find((p) => p.dataKey === 'upload')?.value as number || 0;
+    const download = payload.find((p) => p.dataKey === 'download')?.value || 0;
+    const upload = payload.find((p) => p.dataKey === 'upload')?.value || 0;
 
     return (
       <div className="p-2 rounded-md text-xs shadow-lg" style={{ backgroundColor: 'var(--primary-color)', border: '1px solid var(--tertiary-color)' }}>
