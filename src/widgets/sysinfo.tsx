@@ -75,7 +75,6 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
           const data = await res.json();
           if (!isMounted.current) return;
 
-          // Success logic
           failureCount.current = 0;
           if (disconnectTimer.current) {
             clearTimeout(disconnectTimer.current);
@@ -86,11 +85,10 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
         } else {
           throw new Error('Non-200 response');
         }
-      } catch (error) {
+      } catch {
         if (!isMounted.current) return;
         clearTimeout(timeoutId);
 
-        // Failure logic
         failureCount.current++;
 
         if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
@@ -104,7 +102,6 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
       } finally {
         isFetching.current = false;
         if (isMounted.current) {
-          // Wait 1s before next request
           setTimeout(fetchWithLogic, 1000);
         }
       }
@@ -119,7 +116,8 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
         clearTimeout(disconnectTimer.current);
       }
     };
-  }, []); // Empty dependency array to prevent re-runs on state changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="p-0.5 rounded-lg h-full" style={{ backgroundColor: 'var(--secondary-color)' }}>

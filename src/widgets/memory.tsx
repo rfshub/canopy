@@ -86,14 +86,13 @@ const MetricDisplay = ({
   );
 };
 
-
 // --- Skeleton Loader Component ---
 const MemorySkeleton = () => (
   <div className="p-3.5 rounded-md h-full flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
     <div className="h-6 w-1/3 bg-[var(--tertiary-color)] rounded mb-4 animate-pulse"></div>
-      <div className="flex-1 flex flex-col space-y-4">
-          <div className="flex-1 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
-        <div className="flex-1 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
+    <div className="flex-1 flex flex-col space-y-4">
+      <div className="flex-1 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
+      <div className="flex-1 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
     </div>
   </div>
 );
@@ -127,24 +126,21 @@ export default function MemoryWidget() {
 
         if (!isMounted) return;
 
-        // --- SUCCESS LOGIC ---
         failureCount.current = 0;
         if (disconnectTimer.current) clearTimeout(disconnectTimer.current);
         setConnectionStatus('connected');
         setInfo(newInfo);
         setHistory(prev => {
-            const newPoint = { time: Date.now(), ram: newInfo.used, swap: newInfo.used_swap };
-            const newHistory = [...prev, newPoint];
-            return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
+          const newPoint = { time: Date.now(), ram: newInfo.used, swap: newInfo.used_swap };
+          const newHistory = [...prev, newPoint];
+          return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
         });
 
         nextFetchTimer = setTimeout(fetchWithLogic, 1000);
-
-      } catch (error) {
+      } catch {
         if (!isMounted) return;
         clearTimeout(timeoutId);
 
-        // --- FAILURE LOGIC ---
         failureCount.current++;
         if (failureCount.current >= 3) {
           if (connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {

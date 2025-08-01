@@ -9,7 +9,6 @@ import { Cpu, Zap, RotateCw, Unplug } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
-// --- Type Definitions for API data ---
 interface CoreUsage {
   core: string;
   usage: number;
@@ -30,10 +29,9 @@ interface CpuInfo {
 
 interface ChartHistoryPoint {
   time: number;
-  [coreKey: string]: number; // e.g., '0': 60.5, '1': 45.2
+  [coreKey: string]: number;
 }
 
-// --- Helper Component for Global Usage Bar ---
 const UsageBar = ({ label, usage }: { label: string; usage: number }) => {
   const getBarColor = () => {
     if (usage >= 90) return 'var(--red-color)';
@@ -64,9 +62,6 @@ const UsageBar = ({ label, usage }: { label: string; usage: number }) => {
   );
 };
 
-// --- Different Layouts for Core Usage ---
-
-// Chart for 1-4 Cores
 const CoreUsageChart = ({ cores, history }: { cores: CoreUsage[], history: ChartHistoryPoint[] }) => {
   const coreColors = ['var(--green-color)', 'var(--yellow-color)', 'var(--red-color)', 'var(--theme-color)'];
   return (
@@ -91,7 +86,6 @@ const CoreUsageChart = ({ cores, history }: { cores: CoreUsage[], history: Chart
   );
 };
 
-// Grid for 5+ Cores
 const CoreUsageGrid = ({ cores }: { cores: CoreUsage[] }) => {
   const getCoreColor = (usage: number) => {
     if (usage >= 90) return 'var(--red-color)';
@@ -128,18 +122,13 @@ const CoreUsageGrid = ({ cores }: { cores: CoreUsage[] }) => {
   );
 };
 
-// --- Skeleton Loader Component ---
 const CpuSkeleton = () => (
   <div className="p-3.5 rounded-md h-full flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
-    {/* Header Skeleton */}
     <div className="h-6 w-1/3 bg-[var(--tertiary-color)] rounded mb-1 animate-pulse"></div>
     <div className="h-4 w-1/2 bg-[var(--tertiary-color)] rounded mb-3 animate-pulse"></div>
-    {/* Global Usage Skeleton */}
     <div className="h-4 w-1/4 bg-[var(--tertiary-color)] rounded animate-pulse mb-1"></div>
     <div className="h-2 w-full bg-[var(--tertiary-color)] rounded-full animate-pulse"></div>
-    {/* Frequency Skeleton (optional, matches height) */}
     <div className="h-[20px] mt-3"></div>
-    {/* Core Usage Skeleton */}
     <div className="mt-3 flex-1 flex flex-col">
       <div className="h-4 w-1/3 bg-[var(--tertiary-color)] rounded animate-pulse mb-2"></div>
       <div className="flex-1 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
@@ -147,7 +136,6 @@ const CpuSkeleton = () => (
   </div>
 );
 
-// --- CPU Widget Component ---
 export default function CpuWidget() {
   const [cpuInfo, setCpuInfo] = useState<CpuInfo | null>(null);
   const [history, setHistory] = useState<ChartHistoryPoint[]>([]);
@@ -176,7 +164,6 @@ export default function CpuWidget() {
           const cpuData = await res.json();
           if (!isMounted.current) return;
 
-          // Success logic
           failureCount.current = 0;
           if (disconnectTimer.current) {
             clearTimeout(disconnectTimer.current);
@@ -195,22 +182,23 @@ export default function CpuWidget() {
         } else {
           throw new Error('Non-200 response');
         }
-      } catch (error) {
+      } catch {
         if (!isMounted.current) return;
         clearTimeout(timeoutId);
 
-        // Failure logic
         failureCount.current++;
 
-        if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
-          setConnectionStatus('retrying');
-
-          disconnectTimer.current = setTimeout(() => {
-            if (isMounted.current) {
-              setConnectionStatus('disconnected');
-            }
-          }, 3000);
-        }
+        setConnectionStatus(prev => {
+          if (failureCount.current >= 3 && prev !== 'retrying' && prev !== 'disconnected') {
+            disconnectTimer.current = setTimeout(() => {
+              if (isMounted.current) {
+                setConnectionStatus('disconnected');
+              }
+            }, 3000);
+            return 'retrying';
+          }
+          return prev;
+        });
       } finally {
         isFetching.current = false;
         if (isMounted.current) {
@@ -228,7 +216,7 @@ export default function CpuWidget() {
         clearTimeout(disconnectTimer.current);
       }
     };
-  }, []);
+  }, [connectionStatus]);
 
   return (
     <div className="p-0.5 rounded-lg h-full" style={{ backgroundColor: 'var(--secondary-color)' }}>

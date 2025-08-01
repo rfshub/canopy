@@ -7,7 +7,6 @@ import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion'
 import { ArrowDown, ArrowUp, RotateCw, Unplug, ChevronsLeftRightEllipsis } from 'lucide-react';
 import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-// --- Type Definitions for API data ---
 interface NetworkInfo {
   total_received: number;
   total_transmitted: number;
@@ -22,7 +21,6 @@ interface HistoryPoint {
   upload: number;
 }
 
-// --- Helper function to format bytes ---
 const formatBytes = (bytes: number, decimals = 2, perSecond = false): string => {
   if (bytes < 0) bytes = 0;
   if (bytes === 0) return `0 Bytes${perSecond ? '/s' : ''}`;
@@ -34,7 +32,6 @@ const formatBytes = (bytes: number, decimals = 2, perSecond = false): string => 
   return perSecond ? formattedSize + '/s' : formattedSize;
 };
 
-// --- Animated Number Component ---
 const AnimatedNumber = ({ value, formatter }: { value: number; formatter: (val: number) => string }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
   const display = useTransform(spring, (current) => formatter(current));
@@ -46,7 +43,6 @@ const AnimatedNumber = ({ value, formatter }: { value: number; formatter: (val: 
   return <motion.span>{display}</motion.span>;
 };
 
-// --- Skeleton Loader Component ---
 const NetworkSkeleton = () => (
   <div className="p-3.5 rounded-md h-full flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
     <div className="h-6 w-1/3 bg-[var(--tertiary-color)] rounded mb-3 animate-pulse"></div>
@@ -66,7 +62,6 @@ const NetworkSkeleton = () => (
   </div>
 );
 
-// --- Network Widget Component ---
 export default function NetworkWidget() {
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -96,7 +91,6 @@ export default function NetworkWidget() {
           const newInfo = data.data as NetworkInfo;
           if (!isMounted.current) return;
 
-          // Success logic
           failureCount.current = 0;
           if (disconnectTimer.current) {
             clearTimeout(disconnectTimer.current);
@@ -116,11 +110,10 @@ export default function NetworkWidget() {
         } else {
           throw new Error('Non-200 response');
         }
-      } catch (error) {
+      } catch {
         if (!isMounted.current) return;
         clearTimeout(timeoutId);
 
-        // Failure logic
         failureCount.current++;
 
         if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
@@ -149,7 +142,7 @@ export default function NetworkWidget() {
         clearTimeout(disconnectTimer.current);
       }
     };
-  }, []);
+  }, [connectionStatus]);
 
   const chartDomain = useMemo((): [number, number | 'auto'] => {
     if (history.length < 2) return [0, 'auto'];
@@ -196,7 +189,7 @@ export default function NetworkWidget() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
-                  <ArrowDown className="w-4 h-4 mr-1.5" style={{color: 'var(--green-color)'}}/>
+                  <ArrowDown className="w-4 h-4 mr-1.5" style={{ color: 'var(--green-color)' }} />
                   <span>Download</span>
                 </div>
                 <p className="font-semibold text-lg" style={{ color: 'var(--text-color)' }}>
@@ -208,7 +201,7 @@ export default function NetworkWidget() {
               </div>
               <div>
                 <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
-                  <ArrowUp className="w-4 h-4 mr-1.5" style={{color: 'var(--yellow-color)'}}/>
+                  <ArrowUp className="w-4 h-4 mr-1.5" style={{ color: 'var(--yellow-color)' }} />
                   <span>Upload</span>
                 </div>
                 <p className="font-semibold text-lg" style={{ color: 'var(--text-color)' }}>
