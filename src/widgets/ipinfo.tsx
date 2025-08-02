@@ -44,22 +44,30 @@ const InfoRow = ({
   icon: Icon,
   label,
   value,
-  tooltip
+  tooltip,
+  truncate = false
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   tooltip?: React.ReactNode;
+  truncate?: boolean;
 }) => {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const content = (
     <div className="flex items-center justify-between text-sm cursor-pointer">
-      <div className="flex items-center" style={{ color: 'var(--subtext-color)' }}>
+      <div className="flex items-center flex-shrink-0" style={{ color: 'var(--subtext-color)' }}>
         <Icon className="w-4 h-4 mr-2" />
         <span>{label}</span>
       </div>
-      <span className="font-mono" style={{ color: 'var(--text-color)' }}>{value}</span>
+      <span
+        className={`font-mono ml-2 ${truncate ? 'truncate max-w-[60%]' : ''}`}
+        style={{ color: 'var(--text-color)' }}
+        title={truncate ? value : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 
@@ -227,6 +235,7 @@ export default function IpInfoWidget() {
                 icon={Building}
                 label="ISP"
                 value={ipInfo.network.isp}
+                truncate={true}
                 tooltip={
                   <div>
                     <div className="font-semibold mb-1">Network Details:</div>
@@ -250,6 +259,7 @@ export default function IpInfoWidget() {
                 icon={Info}
                 label="Connection"
                 value={getConnectionStatus(ipInfo.connection)}
+                truncate={true}
                 tooltip={
                   <div>
                     <div className="font-semibold mb-1">Connection Analysis:</div>
