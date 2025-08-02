@@ -69,7 +69,7 @@ const NetworkDeviceItem = ({ device }: { device: NetworkDevice }) => {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const Icon = getDeviceIcon(device.device_type, device.status);
   const displayName = getDeviceDisplayName(device.device_name, device.device_type);
-  const primaryIp = device.ip.ipv4[0] || device.ip.ipv6[0]?.split('%')[0] || 'No IP';
+  const primaryIp = device.ip.ipv4[0] || device.ip.ipv6[0]?.split('%')[0] || 'None';
 
   return (
     <Tooltip.Provider delayDuration={100}>

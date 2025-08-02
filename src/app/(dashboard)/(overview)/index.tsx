@@ -9,6 +9,7 @@ import CpuWidget from '~/widgets/cpu';
 import NetworkWidget from '~/widgets/network';
 import StorageWidget from '~/widgets/storage';
 import IpConfigWidget from '~/widgets/ipconfig';
+import IpInfoWidget from '~/widgets/ipinfo';
 
 // --- Main Page Component ---
 export default function OverviewIndex() {
@@ -41,6 +42,10 @@ export default function OverviewIndex() {
         {/* IP Config Widget */}
         <div className="lg:col-span-1">
           <IpConfigWidget />
+        </div>
+        {/* IP Info Widget */}
+        <div className="lg:col-span-1">
+          <IpInfoWidget />
         </div>
       </div>
     </div>
