@@ -1,4 +1,5 @@
 /* /src/widgets/sysinfo.tsx */
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -91,14 +92,17 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
 
         failureCount.current++;
 
-        if (failureCount.current >= 3 && connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
-          setConnectionStatus('retrying');
-          disconnectTimer.current = setTimeout(() => {
-            if (isMounted.current) {
-              setConnectionStatus('disconnected');
-            }
-          }, 3000);
-        }
+        setConnectionStatus(prev => {
+          if (failureCount.current >= 3 && prev !== 'retrying' && prev !== 'disconnected') {
+            disconnectTimer.current = setTimeout(() => {
+              if (isMounted.current) {
+                setConnectionStatus('disconnected');
+              }
+            }, 3000);
+            return 'retrying';
+          }
+          return prev;
+        });
       } finally {
         isFetching.current = false;
         if (isMounted.current) {
@@ -111,12 +115,10 @@ export default function SystemInfoWidget({ nodeName }: { nodeName: string }) {
 
     return () => {
       isMounted.current = false;
-      isFetching.current = false;
       if (disconnectTimer.current) {
         clearTimeout(disconnectTimer.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

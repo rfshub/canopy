@@ -1,4 +1,4 @@
-/* /src/widgets/memory.tsx */
+/* /src/widgets/memory-v2.tsx */
 
 'use client';
 
@@ -135,62 +135,71 @@ export default function MemoryWidget() {
 
   const failureCount = useRef(0);
   const disconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
+  const isFetching = useRef(false);
 
   useEffect(() => {
-    let isMounted = true;
-    let nextFetchTimer: NodeJS.Timeout;
+    isMounted.current = true;
 
     const fetchWithLogic = async () => {
-      if (!isMounted) return;
+      if (isFetching.current || !isMounted.current) return;
 
+      isFetching.current = true;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       try {
         const res = await request('/v1/monitor/memory', { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!res.ok) throw new Error('Server responded with an error');
 
-        const data = await res.json();
-        const newInfo = data.data as MemoryInfo;
+        if (res.ok) {
+          const data = await res.json();
+          const newInfo = data.data as MemoryInfo;
+          if (!isMounted.current) return;
 
-        if (!isMounted) return;
-
-        failureCount.current = 0;
-        if (disconnectTimer.current) clearTimeout(disconnectTimer.current);
-        setConnectionStatus('connected');
-        setInfo(newInfo);
-
-        nextFetchTimer = setTimeout(fetchWithLogic, 1000);
+          failureCount.current = 0;
+          if (disconnectTimer.current) {
+            clearTimeout(disconnectTimer.current);
+            disconnectTimer.current = null;
+          }
+          setConnectionStatus('connected');
+          setInfo(newInfo);
+        } else {
+          throw new Error('Non-200 response');
+        }
       } catch {
-        if (!isMounted) return;
+        if (!isMounted.current) return;
         clearTimeout(timeoutId);
 
         failureCount.current++;
-        if (failureCount.current >= 3) {
-          if (connectionStatus !== 'retrying' && connectionStatus !== 'disconnected') {
-            setConnectionStatus('retrying');
+
+        setConnectionStatus(prev => {
+          if (failureCount.current >= 3 && prev !== 'retrying' && prev !== 'disconnected') {
             disconnectTimer.current = setTimeout(() => {
-              if (isMounted) {
-                setConnectionStatus(prevStatus =>
-                  prevStatus === 'retrying' ? 'disconnected' : prevStatus
-                );
+              if (isMounted.current) {
+                setConnectionStatus('disconnected');
               }
             }, 3000);
+            return 'retrying';
           }
+          return prev;
+        });
+      } finally {
+        isFetching.current = false;
+        if (isMounted.current) {
+          setTimeout(fetchWithLogic, 1000);
         }
-        nextFetchTimer = setTimeout(fetchWithLogic, 1000);
       }
     };
 
     fetchWithLogic();
 
     return () => {
-      isMounted = false;
-      clearTimeout(nextFetchTimer);
-      if (disconnectTimer.current) clearTimeout(disconnectTimer.current);
+      isMounted.current = false;
+      if (disconnectTimer.current) {
+        clearTimeout(disconnectTimer.current);
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
