@@ -9,7 +9,6 @@ import { MemoryStick, HardDrive, RotateCw, Unplug, Microchip } from 'lucide-reac
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
-// --- Type Definitions for API data ---
 interface MemoryInfo {
   total: number;
   used: number;
@@ -18,13 +17,18 @@ interface MemoryInfo {
   unit: 'bytes';
 }
 
+interface RamSpec {
+  capacity: string;
+  ram_type: string;
+  manufacturer: string;
+}
+
 interface HistoryPoint {
   time: number;
   ram: number;
   swap: number;
 }
 
-// --- Helper function to format bytes ---
 const formatBytes = (bytes: number, decimals = 2): string => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -34,7 +38,6 @@ const formatBytes = (bytes: number, decimals = 2): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-// --- Animated Number Component ---
 const AnimatedNumber = ({ value }: { value: number }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
   const display = useTransform(spring, (current) => formatBytes(current, 2));
@@ -46,7 +49,6 @@ const AnimatedNumber = ({ value }: { value: number }) => {
   return <motion.span>{display}</motion.span>;
 };
 
-// --- Metric Display Component (for RAM or Swap) ---
 const MetricDisplay = ({
   icon: Icon,
   label,
@@ -54,6 +56,7 @@ const MetricDisplay = ({
   currentValue,
   totalValue,
   historyData,
+  spec,
 }: {
   icon: React.ElementType;
   label: string;
@@ -61,20 +64,21 @@ const MetricDisplay = ({
   currentValue: number;
   totalValue: number;
   historyData: { time: number; value: number }[];
+  spec?: RamSpec | null;
 }) => {
   return (
-    <Tooltip.Provider delayDuration={100}>
-      <Tooltip.Root>
-        <Tooltip.Trigger asChild>
-          <div className="flex-1 flex flex-col cursor-default">
-            <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
-              <Icon className="w-4 h-4 mr-1.5" />
-              <span>{label}</span>
-            </div>
-            <p className="font-semibold text-2xl mt-1" style={{ color: 'var(--text-color)' }}>
-              <AnimatedNumber value={currentValue} />
-            </p>
-            <div className="flex-1 -mx-2 -mb-2 mt-1">
+    <div className="flex-1 flex flex-col">
+      <div className="flex items-center text-sm" style={{ color: 'var(--subtext-color)' }}>
+        <Icon className="w-4 h-4 mr-1.5" />
+        <span>{label}</span>
+      </div>
+      <p className="font-semibold text-2xl mt-1" style={{ color: 'var(--text-color)' }}>
+        <AnimatedNumber value={currentValue} />
+      </p>
+      <Tooltip.Provider delayDuration={100}>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            <div className="flex-1 -mx-2 -mb-2 mt-1 cursor-default">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={historyData}>
                   <Line
@@ -88,29 +92,40 @@ const MetricDisplay = ({
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        </Tooltip.Trigger>
-        <Tooltip.Portal>
-          <Tooltip.Content
-            side="top"
-            align="center"
-            sideOffset={5}
-            className="p-2 rounded-md text-xs shadow-lg z-50"
-            style={{ backgroundColor: 'var(--primary-color)', border: '1px solid var(--tertiary-color)' }}
-          >
-            <div className="font-mono">
-              <span style={{ color: 'var(--subtext-color)' }}>Total: </span>
-              <span style={{ color: 'var(--text-color)' }}>{formatBytes(totalValue)}</span>
-            </div>
-            <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
-          </Tooltip.Content>
-        </Tooltip.Portal>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content
+              side="top"
+              align="center"
+              sideOffset={5}
+              className="p-2 rounded-md text-xs shadow-lg z-50"
+              style={{ backgroundColor: 'var(--primary-color)', border: '1px solid var(--tertiary-color)' }}
+            >
+              <div className="font-mono">
+                <span style={{ color: 'var(--subtext-color)' }}>Total: </span>
+                <span style={{ color: 'var(--text-color)' }}>{formatBytes(totalValue)}</span>
+              </div>
+              {spec && (
+                <>
+                  <div className="font-mono mt-1">
+                    <span style={{ color: 'var(--subtext-color)' }}>Type: </span>
+                    <span style={{ color: 'var(--text-color)' }}>{spec.ram_type}</span>
+                  </div>
+                  <div className="font-mono mt-1">
+                    <span style={{ color: 'var(--subtext-color)' }}>Vendor: </span>
+                    <span style={{ color: 'var(--text-color)' }}>{spec.manufacturer}</span>
+                  </div>
+                </>
+              )}
+              <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+    </div>
   );
 };
 
-// --- Skeleton Loader Component ---
 const MemorySkeleton = () => (
   <div className="p-3.5 rounded-md h-full flex flex-col" style={{ backgroundColor: 'var(--primary-color)' }}>
     <div className="h-6 w-1/3 bg-[var(--tertiary-color)] rounded mb-4 animate-pulse"></div>
@@ -121,9 +136,9 @@ const MemorySkeleton = () => (
   </div>
 );
 
-// --- Memory Widget Component ---
 export default function MemoryWidget() {
   const [info, setInfo] = useState<MemoryInfo | null>(null);
+  const [ramSpec, setRamSpec] = useState<RamSpec | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'loading' | 'connected' | 'retrying' | 'disconnected'>('loading');
 
@@ -134,6 +149,19 @@ export default function MemoryWidget() {
 
   useEffect(() => {
     isMounted.current = true;
+
+    const fetchRamSpec = async () => {
+      try {
+        const res = await request('/v1/spec/ram');
+        if (res.ok && isMounted.current) {
+          const data = await res.json();
+          setRamSpec(data.data as RamSpec);
+        }
+      } catch (error) {
+        // Silently fail is acceptable for non-critical info
+        console.error('Failed to fetch RAM spec:', error);
+      }
+    };
 
     const fetchWithLogic = async () => {
       if (isFetching.current || !isMounted.current) return;
@@ -191,6 +219,7 @@ export default function MemoryWidget() {
       }
     };
 
+    fetchRamSpec();
     fetchWithLogic();
 
     return () => {
@@ -221,6 +250,7 @@ export default function MemoryWidget() {
                 currentValue={info.used}
                 totalValue={info.total}
                 historyData={ramHistory}
+                spec={ramSpec}
               />
               <MetricDisplay
                 icon={HardDrive}
