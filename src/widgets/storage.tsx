@@ -9,7 +9,6 @@ import { Database, Unplug, RotateCw, ArrowDownUp } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
-// --- Interfaces ---
 interface IoStats {
   kb_per_transfer: number;
   transfers_per_second: number;
@@ -36,7 +35,6 @@ interface IoHistoryPoint {
   speed: number;
 }
 
-// --- Helper Functions ---
 const formatBytes = (bytes: number, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -59,7 +57,6 @@ const formatSpeed = (speedInMBps: number, decimals = 2) => {
   return `${parseFloat((speedInBytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
-// --- Sub-components ---
 const UsageBar = ({ usage, height = 'h-2.5' }: { usage: number, height?: string }) => {
   const getBarColor = () => {
     if (usage >= 90) return 'var(--red-color)';
@@ -146,7 +143,6 @@ const StorageSkeleton = () => (
     </div>
   );
 
-// --- Main Widget Component ---
 export default function StorageWidget() {
   const [storageInfo, setStorageInfo] = useState<DiskInfo[] | null>(null);
   const [ioHistory, setIoHistory] = useState<IoHistoryPoint[]>([]);
@@ -171,7 +167,7 @@ export default function StorageWidget() {
         if (res.status === 200) {
           const storageData = await res.json();
           if (!isMounted.current) return;
-          // Sort the data to ensure "Macinto" disk is always first if it exists
+          
           const sortedData = storageData.data.sort((a: DiskInfo, b: DiskInfo) => {
             const aIsMac = a.disk_id.includes('Macinto');
             const bIsMac = b.disk_id.includes('Macinto');
@@ -258,33 +254,34 @@ export default function StorageWidget() {
     <div className="p-0.5 rounded-lg h-full" style={{ backgroundColor: 'var(--secondary-color)' }}>
       <div className="relative p-3.5 rounded-md h-full" style={{ backgroundColor: 'var(--primary-color)' }}>
         {storageInfo ? (
-          <Tooltip.Provider delayDuration={100}>
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full cursor-default">
-                  <h2 className="text-lg font-semibold flex items-center" style={{ color: 'var(--text-color)' }}>
-                    <Database className="w-5 h-5 mr-2" />
-                    Storage
-                  </h2>
-                  <div className="flex-grow flex flex-col justify-center space-y-4">
-                    <div>
-                      <div className="flex justify-between items-baseline text-sm mb-1">
-                        <p style={{ color: 'var(--subtext-color)' }}>Total Usage</p>
-                        <span className="font-mono" style={{ color: 'var(--text-color)' }}>
-                          {`${totalUsagePercentage.toFixed(1)}%`}
-                        </span>
-                      </div>
-                      <UsageBar usage={totalUsagePercentage} />
-                      <div className="text-right mt-1">
-                        <span className="font-mono text-sm" style={{ color: 'var(--text-color)' }}>
-                          {formatBytes(totalUsedSpace)}
-                        </span>
-                        <span className="font-mono text-xs" style={{ color: 'var(--subtext-color)' }}>
-                          {' / '}{formatBytes(totalSpace)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-sm">
+          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
+            <h2 className="text-lg font-semibold flex items-center" style={{ color: 'var(--text-color)' }}>
+              <Database className="w-5 h-5 mr-2" />
+              Storage
+            </h2>
+            <div className="flex-grow flex flex-col justify-center space-y-4">
+              <div>
+                <div className="flex justify-between items-baseline text-sm mb-1">
+                  <p style={{ color: 'var(--subtext-color)' }}>Total Usage</p>
+                  <span className="font-mono" style={{ color: 'var(--text-color)' }}>
+                    {`${totalUsagePercentage.toFixed(1)}%`}
+                  </span>
+                </div>
+                <UsageBar usage={totalUsagePercentage} />
+                <div className="text-right mt-1">
+                  <span className="font-mono text-sm" style={{ color: 'var(--text-color)' }}>
+                    {formatBytes(totalUsedSpace)}
+                  </span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--subtext-color)' }}>
+                    {' / '}{formatBytes(totalSpace)}
+                  </span>
+                </div>
+              </div>
+
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <div className="text-sm cursor-default">
                       <div className="flex items-center justify-between" style={{ color: 'var(--subtext-color)' }}>
                         <div className="flex items-center">
                           <ArrowDownUp className="w-4 h-4 mr-2" />
@@ -296,23 +293,23 @@ export default function StorageWidget() {
                       </div>
                       <IoSpeedChart history={ioHistory} color={ioChartColor} />
                     </div>
-                  </div>
-                </motion.div>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content
-                  side="top"
-                  align="center"
-                  sideOffset={5}
-                  className="p-3 rounded-md text-xs shadow-lg z-50 w-72"
-                  style={{ backgroundColor: 'var(--primary-color)', color: 'var(--text-color)', border: '1px solid var(--tertiary-color)' }}
-                >
-                  <DetailedStorageInfo storageInfo={storageInfo} />
-                  <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      side="top"
+                      align="center"
+                      sideOffset={5}
+                      className="p-3 rounded-md text-xs shadow-lg z-50 w-72"
+                      style={{ backgroundColor: 'var(--primary-color)', color: 'var(--text-color)', border: '1px solid var(--tertiary-color)' }}
+                    >
+                      <DetailedStorageInfo storageInfo={storageInfo} />
+                      <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            </div>
+          </motion.div>
         ) : (
           <StorageSkeleton />
         )}
