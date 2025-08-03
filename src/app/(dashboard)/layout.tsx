@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Sidebar from "~/modules/sidebar";
 import Footer from "~/modules/footer";
+import Pkg from "~/lib/pkg";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </main>
         <Footer />
       </div>
+      <Pkg />
     </div>
   );
 }
