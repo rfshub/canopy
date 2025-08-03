@@ -4,10 +4,10 @@
 
 import { useApp } from '~/app/provider';
 import SystemInfoWidget from '~/widgets/sysinfo';
-import MemoryWidget from '~/widgets/memory';
-import CpuWidget from '~/widgets/cpu';
-import NetworkWidget from '~/widgets/network';
-import StorageWidget from '~/widgets/storage';
+import MemoryWidget from '~/widgets/memory-v2';
+import CpuWidget from '~/widgets/cpu-v2';
+import NetworkWidget from '~/widgets/network-v2';
+import StorageWidget from '~/widgets/storage-v2';
 import IpConfigWidget from '~/widgets/ipconfig';
 import IpInfoWidget from '~/widgets/ipinfo';
 import PowerWidget from '~/widgets/power';

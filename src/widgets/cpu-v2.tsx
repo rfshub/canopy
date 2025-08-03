@@ -1,4 +1,4 @@
-/* /src/widgets/cpu.tsx */
+/* /src/widgets/cpu-v2.tsx */
 
 'use client';
 
@@ -7,7 +7,7 @@ import { request } from '~/api/request';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, Zap, RotateCw, Unplug } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 
 interface CoreUsage {
   core: string;
@@ -67,20 +67,29 @@ const CoreUsageChart = ({ cores, history }: { cores: CoreUsage[], history: Chart
   return (
     <div className="h-full -mx-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={history}>
+        <AreaChart data={history}>
+          <defs>
+            {cores.map((core, index) => (
+              <linearGradient key={`gradient-${core.core}`} id={`gradient-${core.core}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={coreColors[index % coreColors.length]} stopOpacity={0.4}/>
+                <stop offset="95%" stopColor={coreColors[index % coreColors.length]} stopOpacity={0}/>
+              </linearGradient>
+            ))}
+          </defs>
           <YAxis domain={[0, 100]} hide />
           {cores.map((core, index) => (
-            <Line
+            <Area
               key={core.core}
               type="monotone"
               dataKey={core.core}
               stroke={coreColors[index % coreColors.length]}
+              fill={`url(#gradient-${core.core})`}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
             />
           ))}
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
