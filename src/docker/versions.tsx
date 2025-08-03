@@ -45,33 +45,6 @@ interface DockerInfo {
   version: DockerVersion | null;
 }
 
-const StatusBadge = ({ isInstalled, isRunning }: { isInstalled: boolean; isRunning: boolean }) => {
-  if (!isInstalled) {
-    return (
-      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--red-color)' }}>
-        Not Installed
-      </span>
-    );
-  }
-
-  if (!isRunning) {
-    return (
-      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-            style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--yellow-color)' }}>
-        Stopped
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-          style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--green-color)' }}>
-      Running
-    </span>
-  );
-};
-
 const DetailedVersionInfo = ({ version }: { version: DockerVersion }) => (
   <div className="font-mono text-xs space-y-3 max-w-md">
     <div>
@@ -110,6 +83,57 @@ const DetailedVersionInfo = ({ version }: { version: DockerVersion }) => (
     </div>
   </div>
 );
+
+const StatusBadge = ({ isInstalled, isRunning, version }: { isInstalled: boolean; isRunning: boolean; version: DockerVersion | null }) => {
+  if (!isInstalled) {
+    return (
+      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
+            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--red-color)' }}>
+        Not Installed
+      </span>
+    );
+  }
+
+  if (!isRunning) {
+    return (
+      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
+            style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--yellow-color)' }}>
+        Stopped
+      </span>
+    );
+  }
+
+  return (
+    <Tooltip.Provider delayDuration={100}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>
+          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full cursor-pointer"
+                style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--green-color)' }}>
+            Running
+          </span>
+        </Tooltip.Trigger>
+        {version && (
+          <Tooltip.Portal>
+            <Tooltip.Content
+              side="bottom"
+              align="center"
+              sideOffset={5}
+              className="p-3 rounded-md text-xs shadow-lg z-50"
+              style={{
+                backgroundColor: 'var(--primary-color)',
+                color: 'var(--text-color)',
+                border: '1px solid var(--tertiary-color)'
+              }}
+            >
+              <DetailedVersionInfo version={version} />
+              <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        )}
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  );
+};
 
 const DockerSkeleton = () => (
   <div className="p-4 rounded-md h-full flex items-center" style={{ backgroundColor: 'var(--primary-color)' }}>
@@ -179,7 +203,6 @@ export default function DockerVersionsWidget() {
             disconnectTimer.current = null;
           }
           setConnectionStatus('connected');
-          // Cache version info when available
           if (data.data.version && data.data.is_running) {
             setCachedVersion(data.data.version);
           }
@@ -205,7 +228,6 @@ export default function DockerVersionsWidget() {
       } finally {
         isFetching.current = false;
         if (isMounted.current) {
-          // Refresh every 5 seconds
           setTimeout(fetchWithLogic, 5 * 1000);
         }
       }
@@ -220,7 +242,6 @@ export default function DockerVersionsWidget() {
     };
   }, []);
 
-  // Use cached version if current version is null but we have cached data
   const displayVersion = dockerInfo?.version || cachedVersion;
   const hasEverHadVersion = !!cachedVersion;
 
@@ -244,6 +265,7 @@ export default function DockerVersionsWidget() {
                   <StatusBadge
                     isInstalled={dockerInfo.is_installed}
                     isRunning={dockerInfo.is_running}
+                    version={displayVersion}
                   />
                 </div>
                 <p className="text-sm" style={{ color: 'var(--subtext-color)' }}>
@@ -251,7 +273,7 @@ export default function DockerVersionsWidget() {
                 </p>
               </div>
             </div>
-            <div className="relative flex items-center space-x-6">
+            <div className="flex items-center space-x-6">
               <div className="text-right">
                 <p className="text-sm font-medium" style={{ color: 'var(--subtext-color)' }}>
                   Version
@@ -276,29 +298,6 @@ export default function DockerVersionsWidget() {
                   {displayVersion.GoVersion}
                 </p>
               </div>
-              <Tooltip.Provider delayDuration={100}>
-                <Tooltip.Root>
-                  <Tooltip.Trigger asChild>
-                    <div className="absolute inset-0 cursor-pointer bg-transparent z-10" />
-                  </Tooltip.Trigger>
-                  <Tooltip.Portal>
-                    <Tooltip.Content
-                      side="left"
-                      align="center"
-                      sideOffset={5}
-                      className="p-3 rounded-md text-xs shadow-lg z-50"
-                      style={{
-                        backgroundColor: 'var(--primary-color)',
-                        color: 'var(--text-color)',
-                        border: '1px solid var(--tertiary-color)'
-                      }}
-                    >
-                      <DetailedVersionInfo version={displayVersion} />
-                      <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
-                    </Tooltip.Content>
-                  </Tooltip.Portal>
-                </Tooltip.Root>
-              </Tooltip.Provider>
             </div>
           </motion.div>
         ) : dockerInfo && !hasEverHadVersion ? (
