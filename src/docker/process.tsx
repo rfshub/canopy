@@ -2,11 +2,12 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { request } from '~/api/request';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw, Unplug } from 'lucide-react';
+import { RotateCw, Unplug, Play, Square, Pause, RotateCcw, Power, Trash2 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 // --- INTERFACES FOR CONTAINER AND STATS ---
 
@@ -97,39 +98,39 @@ interface ProcessedStats {
 // --- HELPER FUNCTIONS ---
 
 function formatBytes(bytes: number, decimals = 2, short = false) {
-    if (!+bytes) return short ? '0 B' : '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = short ? ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] : ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  if (!+bytes) return short ? '0 B' : '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = short ? ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] : ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
 function processStats(data: ContainerStatsData): ProcessedStats {
-    // CPU Calculation
-    const cpuDelta = data.cpu_stats.cpu_usage.total_usage - data.precpu_stats.cpu_usage.total_usage;
-    const systemCpuDelta = data.cpu_stats.system_cpu_usage - data.precpu_stats.system_cpu_usage;
-    const numberCpus = data.cpu_stats.online_cpus;
-    let cpuPercent = 0.0;
-    if (systemCpuDelta > 0.0 && cpuDelta > 0.0) {
-        cpuPercent = (cpuDelta / systemCpuDelta) * numberCpus * 100.0;
-    }
+  // CPU Calculation
+  const cpuDelta = data.cpu_stats.cpu_usage.total_usage - data.precpu_stats.cpu_usage.total_usage;
+  const systemCpuDelta = data.cpu_stats.system_cpu_usage - data.precpu_stats.system_cpu_usage;
+  const numberCpus = data.cpu_stats.online_cpus;
+  let cpuPercent = 0.0;
+  if (systemCpuDelta > 0.0 && cpuDelta > 0.0) {
+    cpuPercent = (cpuDelta / systemCpuDelta) * numberCpus * 100.0;
+  }
 
-    // Memory Calculation
-    const memUsage = data.memory_stats.usage;
-    const memLimit = data.memory_stats.limit;
-    const memPercent = (memUsage / memLimit) * 100.0;
+  // Memory Calculation
+  const memUsage = data.memory_stats.usage;
+  const memLimit = data.memory_stats.limit;
+  const memPercent = (memUsage / memLimit) * 100.0;
 
-    // Network Calculation
-    const networks = Object.values(data.networks || {});
-    const netRx = networks.reduce((acc, net) => acc + net.rx_bytes, 0);
-    const netTx = networks.reduce((acc, net) => acc + net.tx_bytes, 0);
+  // Network Calculation
+  const networks = Object.values(data.networks || {});
+  const netRx = networks.reduce((acc, net) => acc + net.rx_bytes, 0);
+  const netTx = networks.reduce((acc, net) => acc + net.tx_bytes, 0);
 
-    // PIDs Calculation
-    const pids = data.pids_stats?.current || 0;
-    const pidsLimit = data.pids_stats?.limit || 0;
+  // PIDs Calculation
+  const pids = data.pids_stats?.current || 0;
+  const pidsLimit = data.pids_stats?.limit || 0;
 
-    return { cpuPercent, memUsage, memLimit, memPercent, netRx, netTx, pids, pidsLimit };
+  return { cpuPercent, memUsage, memLimit, memPercent, netRx, netTx, pids, pidsLimit };
 }
 
 function parseTimeAgo(statusString: string): number {
@@ -143,11 +144,11 @@ function parseTimeAgo(statusString: string): number {
   switch (unit) {
     case 'second': multiplier = 1000; break;
     case 'minute': multiplier = 1000 * 60; break;
-    case 'hour':   multiplier = 1000 * 60 * 60; break;
-    case 'day':    multiplier = 1000 * 60 * 60 * 24; break;
-    case 'week':   multiplier = 1000 * 60 * 60 * 24 * 7; break;
-    case 'month':  multiplier = 1000 * 60 * 60 * 24 * 30; break;
-    case 'year':   multiplier = 1000 * 60 * 60 * 24 * 365; break;
+    case 'hour': multiplier = 1000 * 60 * 60; break;
+    case 'day': multiplier = 1000 * 60 * 60 * 24; break;
+    case 'week': multiplier = 1000 * 60 * 60 * 24 * 7; break;
+    case 'month': multiplier = 1000 * 60 * 60 * 24 * 30; break;
+    case 'year': multiplier = 1000 * 60 * 60 * 24 * 365; break;
   }
   return Date.now() - (value * multiplier);
 }
@@ -180,41 +181,226 @@ function sortContainers(containers: DockerContainer[]): DockerContainer[] {
 
 // --- UI COMPONENTS ---
 
-const ContainerStatusBadge = ({ state, isDockerOffline }: { state: string; isDockerOffline: boolean }) => {
+const ContainerActionMenu = ({ container, isDockerOffline, onActionSuccess }: {
+  container: DockerContainer;
+  isDockerOffline: boolean;
+  onActionSuccess?: () => void;
+}) => {
+  const [isExecuting, setIsExecuting] = useState<string | null>(null);
+
+  const executeAction = async (action: string, endpoint: string) => {
+    if (isExecuting || isDockerOffline) return;
+    setIsExecuting(action);
+    try {
+      const response = await request(endpoint, { method: 'POST' });
+      if (response.ok) {
+        console.log(`${action} executed successfully`);
+        onActionSuccess?.();
+      } else {
+        console.error(`Failed to ${action} container:`, response.statusText);
+      }
+    } catch (error) {
+      console.error(`Error executing ${action}:`, error);
+    } finally {
+      setIsExecuting(null);
+    }
+  };
+
+  const executeDelete = async () => {
+    if (isExecuting || isDockerOffline) return;
+    setIsExecuting('delete');
+    try {
+      const response = await request(`/v1/containers/${container.Id}`, { method: 'DELETE' });
+      if (response.ok) {
+        console.log('Container deleted successfully');
+        onActionSuccess?.();
+      } else {
+        console.error('Failed to delete container:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error deleting container:', error);
+    } finally {
+      setIsExecuting(null);
+    }
+  };
+
+  const getMenuItems = () => {
+    const state = container.State.toLowerCase();
+    const items = [];
+
+    if (state === 'running') {
+      items.push({
+        label: 'Stop',
+        icon: Square,
+        action: () => executeAction('stop', `/v1/containers/${container.Id}/stop`),
+        disabled: false
+      });
+      items.push({
+        label: 'Pause',
+        icon: Pause,
+        action: () => executeAction('pause', `/v1/containers/${container.Id}/pause`),
+        disabled: false
+      });
+      items.push({
+        label: 'Kill',
+        icon: Power,
+        action: () => executeAction('kill', `/v1/containers/${container.Id}/kill`),
+        disabled: false
+      });
+      items.push({
+        label: 'Restart',
+        icon: RotateCcw,
+        action: () => executeAction('restart', `/v1/containers/${container.Id}/restart`),
+        disabled: false
+      });
+    } else if (state === 'paused') {
+      items.push({
+        label: 'Start',
+        icon: Play,
+        action: () => {},
+        disabled: true
+      });
+      items.push({
+        label: 'Resume',
+        icon: Play,
+        action: () => executeAction('resume', `/v1/containers/${container.Id}/resume`),
+        disabled: false
+      });
+      items.push({
+        label: 'Kill',
+        icon: Power,
+        action: () => {},
+        disabled: true
+      });
+      items.push({
+        label: 'Restart',
+        icon: RotateCcw,
+        action: () => {},
+        disabled: true
+      });
+    } else { // stopped, exited
+      items.push({
+        label: 'Start',
+        icon: Play,
+        action: () => executeAction('start', `/v1/containers/${container.Id}/start`),
+        disabled: false
+      });
+      items.push({
+        label: 'Pause',
+        icon: Pause,
+        action: () => {},
+        disabled: true
+      });
+      items.push({
+        label: 'Delete',
+        icon: Trash2,
+        action: executeDelete,
+        disabled: false
+      });
+      items.push({
+        label: 'Restart',
+        icon: RotateCcw,
+        action: () => {},
+        disabled: true
+      });
+    }
+
+    return items;
+  };
+
+  const menuItems = getMenuItems();
+
+  let statusText: string;
+  let statusStyle: React.CSSProperties;
+
   if (isDockerOffline) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{ backgroundColor: 'rgba(156, 163, 175, 0.1)', color: 'var(--subtext-color)' }}>
-        Offline
-      </span>
-    );
-  }
-
-  const normalizedState = state.toLowerCase();
-
-  if (normalizedState === 'running') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--green-color)' }}>
-        Running
-      </span>
-    );
-  }
-
-  if (normalizedState === 'exited' || normalizedState === 'stopped') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--red-color)' }}>
-        Stopped
-      </span>
-    );
+    statusText = 'Offline';
+    statusStyle = {
+      backgroundColor: 'rgba(156, 163, 175, 0.1)',
+      color: 'var(--subtext-color)',
+    };
+  } else {
+    const normalizedState = container.State.toLowerCase();
+    switch (normalizedState) {
+      case 'running':
+        statusText = 'Running';
+        statusStyle = {
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          color: 'var(--green-color)',
+        };
+        break;
+      case 'exited':
+      case 'stopped':
+        statusText = 'Stopped';
+        statusStyle = {
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          color: 'var(--red-color)',
+        };
+        break;
+      case 'paused':
+        statusText = 'Paused';
+        statusStyle = {
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          color: 'var(--yellow-color)',
+        };
+        break;
+      default:
+        statusText = container.State;
+        statusStyle = {
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          color: 'var(--yellow-color)',
+        };
+        break;
+    }
   }
 
   return (
-    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-          style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--yellow-color)' }}>
-      {state}
-    </span>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full hover:opacity-80 transition-opacity"
+          style={statusStyle}
+          disabled={isDockerOffline}
+        >
+          {statusText}
+        </button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          side="bottom"
+          sideOffset={4}
+          className="min-w-[100px] p-1 rounded-md shadow-lg z-50"
+          style={{
+            backgroundColor: 'var(--primary-color)',
+            border: '1px solid var(--tertiary-color)'
+          }}
+        >
+          {menuItems.map((item, index) => (
+            <DropdownMenu.Item
+              key={index}
+              className={`flex items-center px-2 py-1.5 text-xs rounded cursor-pointer focus:outline-none ${
+                item.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--tertiary-color)]'
+              }`}
+              style={{ color: item.disabled ? 'var(--subtext-color)' : 'var(--text-color)' }}
+              onSelect={item.disabled ? undefined : item.action}
+              disabled={item.disabled}
+            >
+              <item.icon className="w-3 h-3 mr-2" />
+              {isExecuting === item.label.toLowerCase() ? (
+                <div className="flex items-center">
+                  <RotateCw className="w-3 h-3 animate-spin mr-1" />
+                  {item.label}...
+                </div>
+              ) : (
+                item.label
+              )}
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 };
 
@@ -279,44 +465,48 @@ const ContainerTooltipContent = ({ container }: { container: DockerContainer }) 
 );
 
 const StatDisplay = ({ label, value, tooltipContent }: {
-    label: string,
-    value: string,
-    tooltipContent: React.ReactNode
+  label: string,
+  value: string,
+  tooltipContent: React.ReactNode
 }) => (
-    <Tooltip.Root>
-        <Tooltip.Trigger asChild>
-            <div className="text-right cursor-pointer flex-shrink-0" style={{ minWidth: 'max-content' }}>
-                <p className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
-                <p className="text-xs whitespace-nowrap" style={{ color: 'var(--text-color)' }}>{value}</p>
-            </div>
-        </Tooltip.Trigger>
-        <Tooltip.Portal>
-            <Tooltip.Content
-                side="top"
-                align="center"
-                sideOffset={8}
-                className="p-2 rounded-md text-xs shadow-lg z-50 max-w-xs"
-                style={{
-                    backgroundColor: 'var(--primary-color)',
-                    color: 'var(--text-color)',
-                    border: '1px solid var(--tertiary-color)'
-                }}
-            >
-                <div className="font-mono">{tooltipContent}</div>
-                <Tooltip.Arrow style={{ fill: 'var(--primary-color)', stroke: 'var(--tertiary-color)', strokeWidth: 1 }} />
-            </Tooltip.Content>
-        </Tooltip.Portal>
-    </Tooltip.Root>
+  <Tooltip.Root>
+    <Tooltip.Trigger asChild>
+      <div className="text-right cursor-pointer flex-shrink-0" style={{ minWidth: 'max-content' }}>
+        <p className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
+        <p className="text-xs whitespace-nowrap" style={{ color: 'var(--text-color)' }}>{value}</p>
+      </div>
+    </Tooltip.Trigger>
+    <Tooltip.Portal>
+      <Tooltip.Content
+        side="top"
+        align="center"
+        sideOffset={8}
+        className="p-2 rounded-md text-xs shadow-lg z-50 max-w-xs"
+        style={{
+          backgroundColor: 'var(--primary-color)',
+          color: 'var(--text-color)',
+          border: '1px solid var(--tertiary-color)'
+        }}
+      >
+        <div className="font-mono">{tooltipContent}</div>
+        <Tooltip.Arrow style={{ fill: 'var(--primary-color)', stroke: 'var(--tertiary-color)', strokeWidth: 1 }} />
+      </Tooltip.Content>
+    </Tooltip.Portal>
+  </Tooltip.Root>
 );
 
 const StatSkeleton = ({ label }: { label: string }) => (
-    <div className="text-right flex-shrink-0" style={{ minWidth: 'max-content' }}>
-        <p className="text-xs font-medium mb-1 whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
-        <div className="h-3 bg-[var(--tertiary-color)] rounded" style={{ width: '60px' }}></div>
-    </div>
+  <div className="text-right flex-shrink-0" style={{ minWidth: 'max-content' }}>
+    <p className="text-xs font-medium mb-1 whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
+    <div className="h-3 bg-[var(--tertiary-color)] rounded" style={{ width: '60px' }}></div>
+  </div>
 );
 
-const ContainerRow = ({ container, isDockerOffline }: { container: DockerContainer; isDockerOffline: boolean }) => {
+const ContainerRow = ({ container, isDockerOffline, onActionSuccess }: {
+  container: DockerContainer;
+  isDockerOffline: boolean;
+  onActionSuccess?: () => void;
+}) => {
   const containerName = container.Names[0]?.replace('/', '') || 'Unknown';
   const [rawStats, setRawStats] = useState<ContainerStatsData | null>(null);
   const [processedStats, setProcessedStats] = useState<ProcessedStats | null>(null);
@@ -340,47 +530,47 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
   }, []);
 
   useEffect(() => {
-      isMounted.current = true;
-      setStatsLoading(true);
+    isMounted.current = true;
+    setStatsLoading(true);
 
-      if (container.State !== 'running' || isDockerOffline) {
-          setRawStats(null);
-          setProcessedStats(null);
-          setStatsLoading(false);
-          return;
-      }
+    if (container.State !== 'running' || isDockerOffline) {
+      setRawStats(null);
+      setProcessedStats(null);
+      setStatsLoading(false);
+      return;
+    }
 
-      const controller = new AbortController();
-      const fetchStats = async () => {
-          try {
-              const res = await request(`/v1/containers/info/${container.Id}`, { signal: controller.signal });
-              if (res.status === 200) {
-                  const data = await res.json();
-                  if (isMounted.current) {
-                      const statsData = data.data;
-                      setRawStats(statsData);
-                      setProcessedStats(processStats(statsData));
-                      setStatsLoading(false);
-                  }
-              }
-          } catch (error) {
-              if ((error as Error).name !== 'AbortError') {
-                  // console.error("Failed to fetch container stats:", error);
-                  if (isMounted.current) {
-                      setStatsLoading(false);
-                  }
-              }
+    const controller = new AbortController();
+    const fetchStats = async () => {
+      try {
+        const res = await request(`/v1/containers/info/${container.Id}`, { signal: controller.signal });
+        if (res.status === 200) {
+          const data = await res.json();
+          if (isMounted.current) {
+            const statsData = data.data;
+            setRawStats(statsData);
+            setProcessedStats(processStats(statsData));
+            setStatsLoading(false);
           }
-      };
+        }
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          // console.error("Failed to fetch container stats:", error);
+          if (isMounted.current) {
+            setStatsLoading(false);
+          }
+        }
+      }
+    };
 
-      fetchStats();
-      const interval = setInterval(fetchStats, 2000);
+    fetchStats();
+    const interval = setInterval(fetchStats, 2000);
 
-      return () => {
-          isMounted.current = false;
-          clearInterval(interval);
-          controller.abort();
-      };
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+      controller.abort();
+    };
   }, [container.Id, container.State, isDockerOffline]);
 
   const isRunning = container.State === 'running' && !isDockerOffline;
@@ -491,14 +681,11 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
             <div className="flex items-center justify-between w-full">
               <div className="flex-shrink-0 min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
-                  <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-color)', margin: 0 }}>
-                    {containerName}
-                  </h3>
                   <Tooltip.Root>
                     <Tooltip.Trigger asChild>
-                      <span className="cursor-pointer">
-                        <ContainerStatusBadge state={container.State} isDockerOffline={isDockerOffline} />
-                      </span>
+                      <h3 className="font-semibold text-sm truncate cursor-pointer" style={{ color: 'var(--text-color)', margin: 0 }}>
+                        {containerName}
+                      </h3>
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
                       <Tooltip.Content
@@ -517,6 +704,11 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
                       </Tooltip.Content>
                     </Tooltip.Portal>
                   </Tooltip.Root>
+                  <ContainerActionMenu
+                    container={container}
+                    isDockerOffline={isDockerOffline}
+                    onActionSuccess={onActionSuccess}
+                  />
                 </div>
                 <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
                   {container.Image}
@@ -532,14 +724,11 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
           <>
             <div className="flex-shrink-0 pr-4" style={{ width: '35%', minWidth: 0 }}>
               <div className="flex items-center space-x-2">
-                <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-color)', margin: 0 }}>
-                  {containerName}
-                </h3>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <span className="cursor-pointer">
-                      <ContainerStatusBadge state={container.State} isDockerOffline={isDockerOffline} />
-                    </span>
+                    <h3 className="font-semibold text-sm truncate cursor-pointer" style={{ color: 'var(--text-color)', margin: 0 }}>
+                      {containerName}
+                    </h3>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content
@@ -558,6 +747,11 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
                     </Tooltip.Content>
                   </Tooltip.Portal>
                 </Tooltip.Root>
+                <ContainerActionMenu
+                  container={container}
+                  isDockerOffline={isDockerOffline}
+                  onActionSuccess={onActionSuccess}
+                />
               </div>
               <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
                 {container.Image}
@@ -593,8 +787,8 @@ const ProcessSkeleton = () => {
   return (
     <div className="space-y-1">
       {[1, 2, 3].map((i) => (
-        <div key={i} className={`${isPortrait ? 'flex-col space-y-2' : 'flex-row'} py-1.5 px-3 rounded-md`} 
-            style={{ backgroundColor: 'var(--primary-color)', display: 'flex' }}>
+        <div key={i} className={`${isPortrait ? 'flex-col space-y-2' : 'flex-row'} py-1.5 px-3 rounded-md`}
+          style={{ backgroundColor: 'var(--primary-color)', display: 'flex' }}>
           {isPortrait ? (
             <>
               <div className="flex items-center justify-between w-full">
@@ -641,14 +835,14 @@ const ProcessSkeleton = () => {
 };
 
 const DockerNotRunning = () => (
-    <div className="text-center py-4 rounded-md">
-        <p className="text-sm font-medium" style={{ color: 'var(--text-color)' }}>
-          Docker Not Running
-        </p>
-        <p className="text-xs" style={{ color: 'var(--subtext-color)' }}>
-          Please start the Docker service to view containers.
-        </p>
-    </div>
+  <div className="text-center py-4 rounded-md">
+    <p className="text-sm font-medium" style={{ color: 'var(--text-color)' }}>
+      Docker Not Running
+    </p>
+    <p className="text-xs" style={{ color: 'var(--subtext-color)' }}>
+      Please start the Docker service to view containers.
+    </p>
+  </div>
 );
 
 export default function DockerProcessWidget() {
@@ -661,64 +855,71 @@ export default function DockerProcessWidget() {
   const isMounted = useRef(true);
   const isFetching = useRef(false);
 
+  const handleActionSuccess = () => {
+    // Force refresh after container action
+    setTimeout(() => {
+      if (isMounted.current) {
+        // We call fetchWithLogic here, so it needs to be stable
+        fetchWithLogic();
+      }
+    }, 500);
+  };
+
+  const fetchWithLogic = useCallback(async () => {
+    if (isFetching.current || !isMounted.current) return;
+
+    isFetching.current = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const res = await request('/v1/containers', { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.status === 200) {
+        const data = await res.json();
+        if (!isMounted.current) return;
+
+        failureCount.current = 0;
+        if (disconnectTimer.current) {
+          clearTimeout(disconnectTimer.current);
+          disconnectTimer.current = null;
+        }
+        setConnectionStatus('connected');
+
+        if (data.data.containers && data.data.is_running) {
+          setCachedContainers(data.data.containers);
+        }
+
+        setProcessInfo(data.data);
+      } else {
+        throw new Error('Non-200 response');
+      }
+    } catch {
+      if (!isMounted.current) return;
+      clearTimeout(timeoutId);
+      failureCount.current++;
+      setConnectionStatus(prev => {
+        if (failureCount.current >= 3 && prev !== 'retrying' && prev !== 'disconnected') {
+          disconnectTimer.current = setTimeout(() => {
+            if (isMounted.current) {
+              setConnectionStatus('disconnected');
+            }
+          }, 3000);
+          return 'retrying';
+        }
+        return prev;
+      });
+    } finally {
+      isFetching.current = false;
+      if (isMounted.current) {
+        setTimeout(fetchWithLogic, 3 * 1000);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     isMounted.current = true;
-
-    const fetchWithLogic = async () => {
-      if (isFetching.current || !isMounted.current) return;
-
-      isFetching.current = true;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      try {
-        const res = await request('/v1/containers', { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (res.status === 200) {
-          const data = await res.json();
-          if (!isMounted.current) return;
-
-          failureCount.current = 0;
-          if (disconnectTimer.current) {
-            clearTimeout(disconnectTimer.current);
-            disconnectTimer.current = null;
-          }
-          setConnectionStatus('connected');
-
-          if (data.data.containers && data.data.is_running) {
-            setCachedContainers(data.data.containers);
-          }
-
-          setProcessInfo(data.data);
-        } else {
-          throw new Error('Non-200 response');
-        }
-      } catch {
-        if (!isMounted.current) return;
-        clearTimeout(timeoutId);
-
-        failureCount.current++;
-
-        setConnectionStatus(prev => {
-          if (failureCount.current >= 3 && prev !== 'retrying' && prev !== 'disconnected') {
-            disconnectTimer.current = setTimeout(() => {
-              if (isMounted.current) {
-                setConnectionStatus('disconnected');
-              }
-            }, 3000);
-            return 'retrying';
-          }
-          return prev;
-        });
-      } finally {
-        isFetching.current = false;
-        if (isMounted.current) {
-          setTimeout(fetchWithLogic, 3 * 1000);
-        }
-      }
-    };
-
     fetchWithLogic();
 
     return () => {
@@ -728,7 +929,7 @@ export default function DockerProcessWidget() {
         clearTimeout(disconnectTimer.current);
       }
     };
-  }, []);
+  }, [fetchWithLogic]);
 
   const displayContainers = processInfo?.containers || cachedContainers;
   const sortedContainers = sortContainers(displayContainers);
@@ -747,6 +948,7 @@ export default function DockerProcessWidget() {
                   key={container.Id}
                   container={container}
                   isDockerOffline={isDockerOffline}
+                  onActionSuccess={handleActionSuccess}
                 />
               ))}
             </AnimatePresence>
