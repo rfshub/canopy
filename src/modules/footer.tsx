@@ -6,18 +6,19 @@ import { useState, useEffect } from 'react';
 import ThemeToggle from '~/modules/theme-toggle';
 
 export default function Footer({ version }: { version: string }) {
-  const [isPortrait, setIsPortrait] = useState(true);
+  const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
+    const checkCompact = () => {
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const isNarrow = window.innerWidth < 640; // Tailwind's sm: ~640px
+      setIsCompact(isPortrait && isNarrow);
     };
 
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-
+    checkCompact();
+    window.addEventListener('resize', checkCompact);
     return () => {
-      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('resize', checkCompact);
     };
   }, []);
 
@@ -29,7 +30,7 @@ export default function Footer({ version }: { version: string }) {
         color: 'var(--subtext-color)',
       }}
     >
-      {isPortrait ? (
+      {isCompact ? (
         <>
           <p>
             &copy; 2025{' '}

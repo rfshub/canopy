@@ -25,20 +25,20 @@ import {
 } from 'lucide-react';
 
 // --- Type Definitions for Navigation Items ---
-type NavLinkItem = {
+export type NavLinkItem = {
   type: 'link';
   href: string;
   label: string;
   icon: ElementType;
 };
 
-type SubItem = {
+export type SubItem = {
   href: string;
   label: string;
   icon: ElementType;
 };
 
-type CollapsibleNavItem = {
+export type CollapsibleNavItem = {
   type: 'collapsible';
   label: string;
   icon: ElementType;
@@ -46,10 +46,10 @@ type CollapsibleNavItem = {
   subItems: SubItem[];
 };
 
-type NavItem = NavLinkItem | CollapsibleNavItem;
+export type NavItem = NavLinkItem | CollapsibleNavItem;
 
-// --- Navigation Data ---
-const navItems: NavItem[] = [
+// --- Navigation Data (Exported) ---
+export const navItems: NavItem[] = [
   { type: 'link', href: '/', label: 'Overview', icon: Home },
   { type: 'link', href: '/container', label: 'Container', icon: Container },
   {
@@ -68,8 +68,8 @@ const navItems: NavItem[] = [
   { type: 'link', href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-// --- Sub-components for rendering navigation ---
-const NavLink = ({ item, isActive }: { item: NavLinkItem; isActive: boolean }) => (
+// --- Sub-components for rendering navigation (Exported) ---
+export const NavLink = ({ item, isActive }: { item: NavLinkItem; isActive: boolean }) => (
   <Link
     href={item.href}
     className={`relative flex items-center p-2 rounded-lg cursor-pointer transition-colors duration-200 ${
@@ -90,7 +90,7 @@ const NavLink = ({ item, isActive }: { item: NavLinkItem; isActive: boolean }) =
   </Link>
 );
 
-const CollapsibleNav = ({ item, isActive }: { item: CollapsibleNavItem; isActive: boolean }) => {
+export const CollapsibleNav = ({ item, isActive }: { item: CollapsibleNavItem; isActive: boolean }) => {
   const [isOpen, setIsOpen] = useState(isActive);
   const pathname = usePathname();
 
@@ -183,7 +183,7 @@ const CollapsibleNav = ({ item, isActive }: { item: CollapsibleNavItem; isActive
   );
 };
 
-const NodeStatusCard = () => {
+export const NodeStatusCard = () => {
   const { nodes, currentNodeId, currentNodeInfo } = useApp();
   const currentNode = currentNodeId ? nodes[currentNodeId] : null;
   const displayIp = useMemo(() => {

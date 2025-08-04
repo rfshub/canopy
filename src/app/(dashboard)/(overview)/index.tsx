@@ -21,36 +21,36 @@ export default function OverviewIndex() {
     <div className="p-4 md:p-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-8 gap-6">
         {/* CPU Widget */}
-        <div className="sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-1 sm:order-1 md:order-1 2xl:order-1">
+        <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-1 sm:order-1 md:order-1 lg:order-1 2xl:order-1">
           <CpuWidget />
         </div>
         {/* Memory Widget */}
-        <div className="sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-2 sm:order-2 md:order-2 2xl:order-2">
+        <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-2 sm:order-2 md:order-2 lg:order-2 2xl:order-2">
           <MemoryWidget />
         </div>
-        {/* System Information Widget */}
-        <div className="sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-3 sm:order-5 md:order-3 2xl:order-4">
-          <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
-        </div>
         {/* Network Widget */}
-        <div className="sm:col-span-2 md:col-span-2 lg:col-span-2 2xl:col-span-3 order-4 sm:order-3 md:order-4 2xl:order-5">
+        <div className="col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 2xl:col-span-3 order-3 sm:order-3 md:order-3 lg:order-5 2xl:order-5">
           <NetworkWidget />
         </div>
-        {/* Storage Widget */}
-        <div className="sm:hidden md:block md:col-span-1 lg:col-span-1 2xl:col-span-2 order-5 md:order-5 2xl:order-3">
-          <StorageWidget />
-        </div>
         {/* IP Config Widget */}
-        <div className="sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-6 sm:order-4 md:order-6 2xl:order-6">
+        <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-4 sm:order-4 md:order-4 lg:order-6 2xl:order-6">
           <IpConfigWidget />
         </div>
-        {/* IP Info Widget */}
-        <div className="sm:hidden md:block md:col-span-1 lg:col-span-1 2xl:col-span-2 order-7 md:order-7 2xl:order-7">
-          <IpInfoWidget />
+        {/* System Info Widget */}
+        <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-5 sm:order-5 md:order-5 lg:order-4 2xl:order-4">
+          <SystemInfoWidget nodeName={currentNode?.name || 'Loading...'} />
         </div>
         {/* Power Widget */}
-        <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1 2xl:col-span-1 order-6 sm:order-6 md:order-6 lg:order-8 2xl:order-8">
+        <div className="col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-1 2xl:col-span-1 order-6 sm:order-6 md:order-6 lg:order-8 2xl:order-8">
           <PowerWidget />
+        </div>
+        {/* Storage Widget */}
+        <div className="col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-7 sm:order-7 md:order-7 lg:order-3 2xl:order-3">
+          <StorageWidget />
+        </div>
+        {/* IP Info Widget */}
+        <div className="col-span-1 md:col-span-1 lg:col-span-1 2xl:col-span-2 order-8 sm:order-8 md:order-8 lg:order-7 2xl:order-7">
+          <IpInfoWidget />
         </div>
       </div>
     </div>
