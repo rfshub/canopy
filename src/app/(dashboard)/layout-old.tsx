@@ -2,6 +2,7 @@
 
 /* /src/app/(dashboard)/layout.tsx */
 
+/*
 import type { ReactNode } from "react";
 import Sidebar from "~/modules/sidebar";
 import Footer from "~/modules/footer";
@@ -19,3 +20,4 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+*/
