@@ -135,14 +135,14 @@ const StatusBadge = ({ isInstalled, isRunning, version }: { isInstalled: boolean
   );
 };
 
-const DockerSkeleton = () => (
+const DockerSkeleton = ({ isPortrait }: { isPortrait: boolean }) => (
   <div className="p-4 rounded-md h-full flex items-center" style={{ backgroundColor: 'var(--primary-color)' }}>
-    <div className="flex items-center space-x-4 w-full">
+    <div className={`flex w-full ${isPortrait ? 'flex-col space-y-3' : 'items-center space-x-4'}`}>
       <div className="flex-1">
         <div className="h-5 w-32 bg-[var(--tertiary-color)] rounded mb-2 animate-pulse"></div>
         <div className="h-4 w-48 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
       </div>
-      <div className="flex items-center space-x-4">
+      <div className={`flex ${isPortrait ? 'justify-between' : 'items-center space-x-4'}`}>
         <div className="h-4 w-16 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
         <div className="h-4 w-20 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
         <div className="h-4 w-16 bg-[var(--tertiary-color)] rounded animate-pulse"></div>
@@ -153,9 +153,9 @@ const DockerSkeleton = () => (
   </div>
 );
 
-const DockerDaemonStopped = () => (
+const DockerDaemonStopped = ({ isPortrait }: { isPortrait: boolean }) => (
   <div className="relative h-full">
-    <DockerSkeleton />
+    <DockerSkeleton isPortrait={isPortrait} />
     <div className="absolute inset-0.5 flex flex-col items-center justify-center rounded-md bg-[rgba(var(--primary-color-rgb),0.8)] backdrop-blur-[5px]">
       <div className="text-center">
         <p className="text-lg font-medium" style={{ color: 'var(--text-color)' }}>
@@ -169,10 +169,33 @@ const DockerDaemonStopped = () => (
   </div>
 );
 
+// Hook to detect screen orientation
+const useOrientation = () => {
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
+  return isPortrait;
+};
+
 export default function DockerVersionsWidget() {
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [cachedVersion, setCachedVersion] = useState<DockerVersion | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'loading' | 'connected' | 'retrying' | 'disconnected'>('loading');
+  const isPortrait = useOrientation();
 
   const failureCount = useRef(0);
   const disconnectTimer = useRef<NodeJS.Timeout | null>(null);
@@ -246,7 +269,7 @@ export default function DockerVersionsWidget() {
   const hasEverHadVersion = !!cachedVersion;
 
   return (
-    <div className="p-0.5 rounded-lg h-24" style={{ backgroundColor: 'var(--secondary-color)' }}>
+    <div className={`p-0.5 rounded-lg ${isPortrait ? 'h-32' : 'h-24'}`} style={{ backgroundColor: 'var(--secondary-color)' }}>
       <div className="relative py-4 px-6 rounded-md h-full" style={{ backgroundColor: 'var(--primary-color)' }}>
         {dockerInfo && displayVersion ? (
           <motion.div
@@ -254,11 +277,11 @@ export default function DockerVersionsWidget() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-center justify-between h-full"
+            className={`flex h-full ${isPortrait ? 'flex-col justify-between' : 'items-center justify-between'}`}
           >
-            <div className="flex items-center space-x-4">
+            <div className={`flex items-center ${isPortrait ? 'justify-start mb-2' : 'space-x-4'}`}>
               <div>
-                <div className="flex items-center space-x-3 mb-1">
+                <div className={`flex items-center mb-1 ${isPortrait ? 'justify-start' : ''} space-x-3`}>
                   <h2 className="text-lg font-semibold" style={{ color: 'var(--text-color)' }}>
                     Docker Engine
                   </h2>
@@ -273,8 +296,8 @@ export default function DockerVersionsWidget() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
-              <div className="text-right">
+            <div className={`flex ${isPortrait ? 'justify-between items-center' : 'items-center space-x-6'}`}>
+              <div className={`${isPortrait ? 'text-center' : 'text-right'}`}>
                 <p className="text-sm font-medium" style={{ color: 'var(--subtext-color)' }}>
                   Version
                 </p>
@@ -282,7 +305,7 @@ export default function DockerVersionsWidget() {
                   {displayVersion.Version}
                 </p>
               </div>
-              <div className="text-right">
+              <div className={`${isPortrait ? 'text-center' : 'text-right'}`}>
                 <p className="text-sm font-medium" style={{ color: 'var(--subtext-color)' }}>
                   Architecture
                 </p>
@@ -290,7 +313,7 @@ export default function DockerVersionsWidget() {
                   {displayVersion.Os}/{displayVersion.Arch}
                 </p>
               </div>
-              <div className="text-right">
+              <div className={`${isPortrait ? 'text-center' : 'text-right'}`}>
                 <p className="text-sm font-medium" style={{ color: 'var(--subtext-color)' }}>
                   Go Version
                 </p>
@@ -307,10 +330,10 @@ export default function DockerVersionsWidget() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <DockerDaemonStopped />
+            <DockerDaemonStopped isPortrait={isPortrait} />
           </motion.div>
         ) : (
-          <DockerSkeleton />
+          <DockerSkeleton isPortrait={isPortrait} />
         )}
         <AnimatePresence>
           {connectionStatus !== 'connected' && (

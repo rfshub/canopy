@@ -19,7 +19,7 @@ interface Port {
 
 interface DockerNetwork {
   IPAddress: string;
-  [key: string]: unknown; // Allow other properties but don't type them as any
+  [key: string]: unknown;
 }
 
 interface DockerContainer {
@@ -278,20 +278,24 @@ const ContainerTooltipContent = ({ container }: { container: DockerContainer }) 
   </div>
 );
 
-const StatDisplay = ({ label, value, tooltipContent }: { label: string, value: string, tooltipContent: React.ReactNode }) => (
+const StatDisplay = ({ label, value, tooltipContent }: {
+    label: string,
+    value: string,
+    tooltipContent: React.ReactNode
+}) => (
     <Tooltip.Root>
         <Tooltip.Trigger asChild>
-            <div className="text-right cursor-pointer min-w-[70px]">
-                <p className="text-xs font-medium" style={{ color: 'var(--subtext-color)' }}>{label}</p>
-                <p className="text-xs" style={{ color: 'var(--text-color)' }}>{value}</p>
+            <div className="text-right cursor-pointer flex-shrink-0" style={{ minWidth: 'max-content' }}>
+                <p className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
+                <p className="text-xs whitespace-nowrap" style={{ color: 'var(--text-color)' }}>{value}</p>
             </div>
         </Tooltip.Trigger>
         <Tooltip.Portal>
             <Tooltip.Content
                 side="top"
                 align="center"
-                sideOffset={5}
-                className="p-2 rounded-md text-xs shadow-lg z-50"
+                sideOffset={8}
+                className="p-2 rounded-md text-xs shadow-lg z-50 max-w-xs"
                 style={{
                     backgroundColor: 'var(--primary-color)',
                     color: 'var(--text-color)',
@@ -299,24 +303,50 @@ const StatDisplay = ({ label, value, tooltipContent }: { label: string, value: s
                 }}
             >
                 <div className="font-mono">{tooltipContent}</div>
-                <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
+                <Tooltip.Arrow style={{ fill: 'var(--primary-color)', stroke: 'var(--tertiary-color)', strokeWidth: 1 }} />
             </Tooltip.Content>
         </Tooltip.Portal>
     </Tooltip.Root>
+);
+
+const StatSkeleton = ({ label }: { label: string }) => (
+    <div className="text-right flex-shrink-0" style={{ minWidth: 'max-content' }}>
+        <p className="text-xs font-medium mb-1 whitespace-nowrap" style={{ color: 'var(--subtext-color)' }}>{label}</p>
+        <div className="h-3 bg-[var(--tertiary-color)] rounded" style={{ width: '60px' }}></div>
+    </div>
 );
 
 const ContainerRow = ({ container, isDockerOffline }: { container: DockerContainer; isDockerOffline: boolean }) => {
   const containerName = container.Names[0]?.replace('/', '') || 'Unknown';
   const [rawStats, setRawStats] = useState<ContainerStatsData | null>(null);
   const [processedStats, setProcessedStats] = useState<ProcessedStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [isPortrait, setIsPortrait] = useState(false);
   const isMounted = useRef(true);
 
   useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
+  useEffect(() => {
       isMounted.current = true;
+      setStatsLoading(true);
 
       if (container.State !== 'running' || isDockerOffline) {
           setRawStats(null);
           setProcessedStats(null);
+          setStatsLoading(false);
           return;
       }
 
@@ -330,11 +360,15 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
                       const statsData = data.data;
                       setRawStats(statsData);
                       setProcessedStats(processStats(statsData));
+                      setStatsLoading(false);
                   }
               }
           } catch (error) {
               if ((error as Error).name !== 'AbortError') {
                   // console.error("Failed to fetch container stats:", error);
+                  if (isMounted.current) {
+                      setStatsLoading(false);
+                  }
               }
           }
       };
@@ -349,6 +383,99 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
       };
   }, [container.Id, container.State, isDockerOffline]);
 
+  const isRunning = container.State === 'running' && !isDockerOffline;
+  const dynamicStats = isRunning && processedStats && rawStats && !statsLoading ? (
+    <>
+      <StatDisplay
+        label="CPU"
+        value={`${processedStats.cpuPercent.toFixed(1)}%`}
+        tooltipContent={
+          <div>
+            <p>CPU Usage: {processedStats.cpuPercent.toFixed(2)}%</p>
+            <p>Online CPUs: {rawStats.cpu_stats.online_cpus}</p>
+          </div>
+        }
+      />
+      <StatDisplay
+        label="Memory"
+        value={`${processedStats.memPercent.toFixed(1)}%`}
+        tooltipContent={
+          <div>
+            <p>Total Usage: {formatBytes(rawStats.memory_stats.usage)}</p>
+            <p>RSS: {rawStats.memory_stats.stats?.anon ? formatBytes(rawStats.memory_stats.stats.anon) : 'N/A'}</p>
+            <p>Cache: {rawStats.memory_stats.stats?.file ? formatBytes(rawStats.memory_stats.stats.file) : 'N/A'}</p>
+            <p>Limit: {formatBytes(rawStats.memory_stats.limit)}</p>
+          </div>
+        }
+      />
+      <StatDisplay
+        label="Network I/O"
+        value={`${formatBytes(processedStats.netRx, 1, true)} / ${formatBytes(processedStats.netTx, 1, true)}`}
+        tooltipContent={
+          <div>
+            {rawStats.networks && Object.entries(rawStats.networks).map(([iface, net]) => (
+              <div key={iface}>
+                <p>{iface}:</p>
+                <p>RX: {formatBytes(net.rx_bytes)}</p>
+                <p>TX: {formatBytes(net.tx_bytes)}</p>
+              </div>
+            ))}
+          </div>
+        }
+      />
+      <StatDisplay
+        label="PIDs"
+        value={processedStats.pids.toString()}
+        tooltipContent={
+          <div>
+            <p>Current: {processedStats.pids}</p>
+            <p>Limit: {processedStats.pidsLimit > 1e18 ? 'Unlimited' : processedStats.pidsLimit}</p>
+          </div>
+        }
+      />
+    </>
+  ) : isRunning && statsLoading ? (
+    <>
+      <StatSkeleton label="CPU" />
+      <StatSkeleton label="Memory" />
+      <StatSkeleton label="Network I/O" />
+      <StatSkeleton label="PIDs" />
+    </>
+  ) : null;
+
+  // 静态数据组件
+  const staticStats = (
+    <>
+      <StatDisplay
+        label="Uptime"
+        value={isDockerOffline ? 'N/A' : container.Status}
+        tooltipContent={
+          <div>
+            <p>Container Status: {container.Status}</p>
+            <p>State: {container.State}</p>
+          </div>
+        }
+      />
+      <StatDisplay
+        label="Network"
+        value={container.HostConfig.NetworkMode}
+        tooltipContent={
+          <div>
+            <p>Network Mode: {container.HostConfig.NetworkMode}</p>
+            {Object.keys(container.NetworkSettings.Networks).length > 0 && (
+              <div>
+                <p>Networks:</p>
+                {Object.entries(container.NetworkSettings.Networks).map(([name, network]: [string, DockerNetwork]) => (
+                  <p key={name}>{name}: {network.IPAddress || 'N/A'}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        }
+      />
+    </>
+  );
+
   return (
     <Tooltip.Provider delayDuration={100}>
       <motion.div
@@ -356,174 +483,162 @@ const ContainerRow = ({ container, isDockerOffline }: { container: DockerContain
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="flex items-center py-1.5 px-3 rounded-md hover:bg-[var(--tertiary-color)] transition-colors"
-        style={{ backgroundColor: 'var(--primary-color)' }}
+        className={`${isPortrait ? 'flex-col space-y-2' : 'flex-row'} py-1.5 px-3 rounded-md hover:bg-[var(--tertiary-color)] transition-colors`}
+        style={{ backgroundColor: 'var(--primary-color)', display: 'flex' }}
       >
-        {/* Group 1: Left */}
-        <div className="flex-shrink-0 pr-4" style={{ width: '40%', minWidth: 0 }}>
-          <div className="flex items-center space-x-2">
-            <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-color)', margin: 0 }}>
-              {containerName}
-            </h3>
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <span className="cursor-pointer">
-                  <ContainerStatusBadge state={container.State} isDockerOffline={isDockerOffline} />
-                </span>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content
-                  side="top"
-                  align="center"
-                  sideOffset={5}
-                  className="p-3 rounded-md text-xs shadow-lg z-50 w-fit max-w-2xl"
-                  style={{
-                    backgroundColor: 'var(--primary-color)',
-                    color: 'var(--text-color)',
-                    border: '1px solid var(--tertiary-color)'
-                  }}
-                >
-                  <ContainerTooltipContent container={container} />
-                  <Tooltip.Arrow style={{ fill: 'var(--tertiary-color)' }} />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </div>
-          <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
-            {container.Image}
-          </p>
-        </div>
-
-        {/* Group 2: Center (Live Stats) */}
-        <div className="flex-grow flex justify-center">
-            {container.State === 'running' && processedStats && rawStats && (
-                <div className="flex items-center">
-                    <StatDisplay
-                        label="CPU"
-                        value={`${processedStats.cpuPercent.toFixed(1)}%`}
-                        tooltipContent={
-                            <div>
-                                <p>CPU Usage: {processedStats.cpuPercent.toFixed(2)}%</p>
-                                <p>Online CPUs: {rawStats.cpu_stats.online_cpus}</p>
-                            </div>
-                        }
-                    />
-                    <div style={{ width: '2rem' }} />
-                    <StatDisplay
-                        label="Memory"
-                        value={`${processedStats.memPercent.toFixed(1)}%`}
-                        tooltipContent={
-                            <div>
-                                <p>Total Usage: {formatBytes(rawStats.memory_stats.usage)}</p>
-                                <p>RSS: {rawStats.memory_stats.stats?.anon ? formatBytes(rawStats.memory_stats.stats.anon) : 'N/A'}</p>
-                                <p>Cache: {rawStats.memory_stats.stats?.file ? formatBytes(rawStats.memory_stats.stats.file) : 'N/A'}</p>
-                                <p>Limit: {formatBytes(rawStats.memory_stats.limit)}</p>
-                            </div>
-                        }
-                    />
-                    <div style={{ width: '2rem' }} />
-                    <StatDisplay
-                        label="Network I/O"
-                        value={`${formatBytes(processedStats.netRx, 1, true)} / ${formatBytes(processedStats.netTx, 1, true)}`}
-                        tooltipContent={
-                            <div>
-                                {rawStats.networks && Object.entries(rawStats.networks).map(([iface, net]) => (
-                                    <div key={iface}>
-                                        <p>{iface}:</p>
-                                        <p>RX: {formatBytes(net.rx_bytes)}</p>
-                                        <p>TX: {formatBytes(net.tx_bytes)}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        }
-                    />
-                    <div style={{ width: '1.5rem' }} />
-                    <StatDisplay
-                        label="PIDs"
-                        value={processedStats.pids.toString()}
-                        tooltipContent={
-                            <div>
-                                <p>Current: {processedStats.pids}</p>
-                                <p>Limit: {processedStats.pidsLimit > 1e18 ? 'Unlimited' : processedStats.pidsLimit}</p>
-                            </div>
-                        }
-                    />
+        {isPortrait ? (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex-shrink-0 min-w-0 flex-1">
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-color)', margin: 0 }}>
+                    {containerName}
+                  </h3>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger asChild>
+                      <span className="cursor-pointer">
+                        <ContainerStatusBadge state={container.State} isDockerOffline={isDockerOffline} />
+                      </span>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        side="top"
+                        align="center"
+                        sideOffset={8}
+                        className="p-3 rounded-md text-xs shadow-lg z-50 w-fit max-w-2xl"
+                        style={{
+                          backgroundColor: 'var(--primary-color)',
+                          color: 'var(--text-color)',
+                          border: '1px solid var(--tertiary-color)'
+                        }}
+                      >
+                        <ContainerTooltipContent container={container} />
+                        <Tooltip.Arrow style={{ fill: 'var(--primary-color)', stroke: 'var(--tertiary-color)', strokeWidth: 1 }} />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
                 </div>
-            )}
-        </div>
-
-        {/* Group 3: Right (Static Info) */}
-        <div className="flex-shrink-0 flex items-center space-x-6">
-            <div className="text-right min-w-[130px]">
-                <p className="text-xs font-medium" style={{ color: 'var(--subtext-color)' }}>Uptime</p>
-                <p className="text-xs truncate" style={{ color: 'var(--text-color)' }}>
-                    {isDockerOffline ? 'N/A' : container.Status}
+                <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
+                  {container.Image}
                 </p>
+              </div>
             </div>
-            <div className="text-right min-w-[60px]">
-                <p className="text-xs font-medium" style={{ color: 'var(--subtext-color)' }}>Network</p>
-                <p className="text-xs" style={{ color: 'var(--text-color)' }}>
-                    {container.HostConfig.NetworkMode}
-                </p>
+            <div className="flex justify-end items-center gap-3 w-full overflow-x-auto">
+              {dynamicStats}
+              {staticStats}
             </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="flex-shrink-0 pr-4" style={{ width: '35%', minWidth: 0 }}>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-color)', margin: 0 }}>
+                  {containerName}
+                </h3>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <span className="cursor-pointer">
+                      <ContainerStatusBadge state={container.State} isDockerOffline={isDockerOffline} />
+                    </span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      side="top"
+                      align="center"
+                      sideOffset={8}
+                      className="p-3 rounded-md text-xs shadow-lg z-50 w-fit max-w-2xl"
+                      style={{
+                        backgroundColor: 'var(--primary-color)',
+                        color: 'var(--text-color)',
+                        border: '1px solid var(--tertiary-color)'
+                      }}
+                    >
+                      <ContainerTooltipContent container={container} />
+                      <Tooltip.Arrow style={{ fill: 'var(--primary-color)', stroke: 'var(--tertiary-color)', strokeWidth: 1 }} />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </div>
+              <p className="text-xs truncate" style={{ color: 'var(--subtext-color)' }}>
+                {container.Image}
+              </p>
+            </div>
+            <div className="flex-grow flex justify-end items-center gap-4 px-2">
+              {dynamicStats}
+              {staticStats}
+            </div>
+          </>
+        )}
       </motion.div>
     </Tooltip.Provider>
   );
 };
 
-const ProcessSkeleton = () => (
-  <div className="space-y-1">
-    {[1, 2, 3].map((i) => (
-      <div key={i} className="py-1.5 px-3 rounded-md" style={{ backgroundColor: 'var(--primary-color)' }}>
-        <div className="flex items-center">
-            {/* Left */}
-            <div className="flex-shrink-0 pr-4 min-w-0" style={{ maxWidth: '40%' }}>
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-32 bg-[var(--tertiary-color)] rounded"></div>
-                <div className="h-5 w-16 bg-[var(--tertiary-color)] rounded-full"></div>
-              </div>
-              <div className="h-3 w-48 bg-[var(--tertiary-color)] rounded mt-1"></div>
-            </div>
+const ProcessSkeleton = () => {
+  const [isPortrait, setIsPortrait] = useState(false);
 
-            {/* Center */}
-            <div className="flex-grow flex justify-center">
-                <div className="flex items-center space-x-8">
-                    <div className="text-right min-w-[70px]">
-                      <div className="h-3 w-8 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                      <div className="h-3 w-10 bg-[var(--tertiary-color)] rounded ml-auto"></div>
-                    </div>
-                    <div className="text-right min-w-[70px]">
-                      <div className="h-3 w-12 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                      <div className="h-3 w-10 bg-[var(--tertiary-color)] rounded ml-auto"></div>
-                    </div>
-                    <div className="text-right min-w-[70px]">
-                      <div className="h-3 w-14 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                      <div className="h-3 w-16 bg-[var(--tertiary-color)] rounded ml-auto"></div>
-                    </div>
-                    <div className="text-right min-w-[70px]">
-                      <div className="h-3 w-8 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                      <div className="h-3 w-5 bg-[var(--tertiary-color)] rounded ml-auto"></div>
-                    </div>
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
+  return (
+    <div className="space-y-1">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className={`${isPortrait ? 'flex-col space-y-2' : 'flex-row'} py-1.5 px-3 rounded-md`} 
+            style={{ backgroundColor: 'var(--primary-color)', display: 'flex' }}>
+          {isPortrait ? (
+            <>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex-shrink-0 min-w-0 flex-1">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-4 w-32 bg-[var(--tertiary-color)] rounded"></div>
+                    <div className="h-5 w-16 bg-[var(--tertiary-color)] rounded-full"></div>
+                  </div>
+                  <div className="h-3 w-48 bg-[var(--tertiary-color)] rounded mt-1"></div>
                 </div>
-            </div>
-
-            {/* Right */}
-            <div className="flex-shrink-0 flex items-center space-x-6">
-              <div className="text-right min-w-[130px]">
-                <div className="h-3 w-12 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                <div className="h-3 w-20 bg-[var(--tertiary-color)] rounded ml-auto"></div>
               </div>
-              <div className="text-right min-w-[60px]">
-                <div className="h-3 w-16 bg-[var(--tertiary-color)] rounded ml-auto mb-1"></div>
-                <div className="h-3 w-10 bg-[var(--tertiary-color)] rounded ml-auto"></div>
+              <div className="flex justify-end items-center gap-3 w-full overflow-x-auto">
+                <StatSkeleton label="CPU" />
+                <StatSkeleton label="Memory" />
+                <StatSkeleton label="Network I/O" />
+                <StatSkeleton label="PIDs" />
+                <StatSkeleton label="Uptime" />
+                <StatSkeleton label="Network" />
               </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="flex-shrink-0 pr-4 min-w-0" style={{ width: '35%' }}>
+                <div className="flex items-center space-x-2">
+                  <div className="h-4 w-32 bg-[var(--tertiary-color)] rounded"></div>
+                  <div className="h-5 w-16 bg-[var(--tertiary-color)] rounded-full"></div>
+                </div>
+                <div className="h-3 w-48 bg-[var(--tertiary-color)] rounded mt-1"></div>
+              </div>
+              <div className="flex-grow flex justify-end items-center gap-4 px-2">
+                <StatSkeleton label="CPU" />
+                <StatSkeleton label="Memory" />
+                <StatSkeleton label="Network I/O" />
+                <StatSkeleton label="PIDs" />
+                <StatSkeleton label="Uptime" />
+                <StatSkeleton label="Network" />
+              </div>
+            </>
+          )}
         </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 const DockerNotRunning = () => (
     <div className="text-center py-4 rounded-md">

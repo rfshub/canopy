@@ -1,15 +1,32 @@
 /* /src/app/(dashboard)/layout.tsx */
 
-import type { ReactNode } from "react";
-import Sidebar from "~/modules/sidebar";
-import Footer from "~/modules/footer";
-import Pkg from "~/lib/pkg";
+import type { ReactNode } from 'react';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import Sidebar from '~/modules/sidebar';
+import Footer from '~/modules/footer';
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  let version = '0.0.0';
+  try {
+    const packageJsonPath = join(process.cwd(), 'package.json');
+    const packageJsonContent = await readFile(packageJsonPath, 'utf-8');
+    version = JSON.parse(packageJsonContent).version;
+  } catch (error) {
+    console.error('Failed to read package.json in layout:', error);
+  }
+
   return (
     // The root container has a fixed viewport height. This prevents the whole page
     // from scrolling and keeps the Sidebar fixed in place.
-    <div className="flex h-dvh" style={{ backgroundColor: 'var(--primary-color)' }}>
+    <div
+      className="flex h-dvh"
+      style={{ backgroundColor: 'var(--primary-color)' }}
+    >
       <Sidebar />
       {/* This wrapper takes the remaining width and handles its own scrolling. */}
       {/* It's a flex-column to stack the main content and footer. */}
@@ -17,12 +34,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* The main content area grows to fill the space inside the scrollable wrapper, */}
         {/* pushing the footer to the bottom on short pages. */}
         {/* When content is long, it expands and causes the wrapper to scroll. */}
-        <main className="flex-1">
-          {children}
-        </main>
-        <Footer />
+        <main className="flex-1">{children}</main>
+        <Footer version={version} />
       </div>
-      <Pkg />
     </div>
   );
 }
