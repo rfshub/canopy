@@ -36,7 +36,7 @@ export default function OverviewIndex() {
         <div className="sm:col-span-2 md:col-span-2 lg:col-span-2 2xl:col-span-3 order-4 sm:order-3 md:order-4 2xl:order-5">
           <NetworkWidget />
         </div>
-        {/* Storage Widget - 在平板竖屏下隐藏 */}
+        {/* Storage Widget */}
         <div className="sm:hidden md:block md:col-span-1 lg:col-span-1 2xl:col-span-2 order-5 md:order-5 2xl:order-3">
           <StorageWidget />
         </div>
@@ -49,7 +49,7 @@ export default function OverviewIndex() {
           <IpInfoWidget />
         </div>
         {/* Power Widget */}
-        <div className="sm:col-span-2 md:col-span-1 lg:col-span-1 2xl:col-span-1 order-8 sm:order-6 md:order-8 2xl:order-8">
+        <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1 2xl:col-span-1 order-6 sm:order-6 md:order-6 lg:order-8 2xl:order-8">
           <PowerWidget />
         </div>
       </div>
