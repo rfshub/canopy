@@ -158,23 +158,33 @@ function sortContainers(containers: DockerContainer[]): DockerContainer[] {
     return containers;
   }
   const containersCopy = [...containers];
+
+  const getStatePriority = (state: string): number => {
+    const lowerCaseState = state.toLowerCase();
+    if (lowerCaseState === 'running') return 0;
+    if (lowerCaseState === 'paused') return 1;
+    return 2; // For 'exited', 'stopped', etc.
+  };
+
   containersCopy.sort((a, b) => {
-    const aIsRunning = a.State === 'running';
-    const bIsRunning = b.State === 'running';
+    const priorityA = getStatePriority(a.State);
+    const priorityB = getStatePriority(b.State);
 
-    if (aIsRunning && !bIsRunning) return -1;
-    if (!aIsRunning && bIsRunning) return 1;
-
-    if (aIsRunning && bIsRunning) {
-      return a.Created - b.Created;
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
     }
 
-    if (!aIsRunning && !bIsRunning) {
-      const aExitedTime = parseTimeAgo(a.Status);
-      const bExitedTime = parseTimeAgo(b.Status);
-      return bExitedTime - aExitedTime;
+    switch (priorityA) {
+      case 0: // Both are 'running'
+      case 1: // Both are 'paused'
+        return a.Created - b.Created;
+      case 2: // Both are 'stopped' or 'exited'
+        const aExitedTime = parseTimeAgo(a.Status);
+        const bExitedTime = parseTimeAgo(b.Status);
+        return bExitedTime - aExitedTime;
+      default:
+        return 0;
     }
-    return 0;
   });
   return containersCopy;
 }
